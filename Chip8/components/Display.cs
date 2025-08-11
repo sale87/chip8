@@ -86,10 +86,10 @@ namespace Chip8.components
                     {
                         DrawPixel(
                             renderer, x, y,
-                            displayGrid[x - 1, y],
-                            displayGrid[x + 1, y],
-                            displayGrid[x, y - 1],
-                            displayGrid[x, y + 1]
+                            (x - 1 > 0) && displayGrid[x - 1, y],
+                            (x + 1 < WIDTH) && displayGrid[x + 1, y],
+                            (y - 1 > 0) && displayGrid[x, y - 1],
+                            (y + 1 < HEIGHT) && displayGrid[x, y + 1]
                         );
                     }
                 }

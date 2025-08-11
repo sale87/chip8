@@ -1,10 +1,12 @@
-using System.Timers;
-using System.Xml.Serialization;
 using Chip8.components;
 using Chip8.util;
+using SDL3;
 
 public class Chip8Emu
 {
+    private readonly bool DEBUG_RAW = false;
+    private readonly bool DEBUG = true;
+
     private readonly Memory _memory = new();
 
     private readonly Display _display = new();
@@ -27,12 +29,16 @@ public class Chip8Emu
 
     private byte _soundTimer = 255;
 
+    // SDL things
+    private static bool loop = true;
+    private static readonly uint FPS = 60;
+    private static readonly uint FRAME_TARGET_TIME = 1000 / FPS;
+    private static ulong lastFameTime = 0;
+
+
     public Chip8Emu()
     {
         Font.Load(_memory);
-        _cpuTimer = new System.Timers.Timer(1000.0 / 700); // ~ 700 times per second        
-        _cpuTimer.Elapsed += ExecuteCycle;
-        _cpuTimer.AutoReset = true;
     }
 
     public void LoadRom(string path)
@@ -44,14 +50,57 @@ public class Chip8Emu
 
     public void Start()
     {
-        _cpuTimer.Start();
-        // main sdl loop
+        _cpuTimer = Timer.MakeTimer(RunCycle);
+        // main SDL loop
+        while (loop)
+        {
+            Wait();
+            ProcessInput();
+            _display.Draw();
+        }
+        _display.Close();
+    }
+
+    private static double Wait()
+    {
+        uint timeToWait = FRAME_TARGET_TIME - (uint)(SDL.GetTicks() - lastFameTime);
+        if (timeToWait > 0 && timeToWait <= FRAME_TARGET_TIME)
+        {
+            SDL.Delay(timeToWait);
+        }
+        double deltaTime = (SDL.GetTicks() - lastFameTime) / 1000.0;
+        lastFameTime = SDL.GetTicks();
+        return deltaTime;
+    }
+
+    private static void ProcessInput()
+    {
+        while (SDL.PollEvent(out var e))
+        {
+            SDL.EventType type = (SDL.EventType)e.Type;
+            if (type == SDL.EventType.Quit)
+            {
+                loop = false;
+            }
+
+            if (type == SDL.EventType.KeyDown)
+            {
+                SDL.Keycode key = e.Key.Key;
+                if (key == SDL.Keycode.Escape || key == SDL.Keycode.Q)
+                {
+                    loop = false;
+                }
+            }
+        }
     }
 
     public void RunCycle()
     {
         byte[] instruction = FetchInstruction();
         ExecuteInstruction(instruction);
+        _cpuTimer.Close();
+        _cpuTimer.Dispose();
+        _cpuTimer = Timer.MakeTimer(RunCycle);
     }
 
     private byte[] FetchInstruction()
@@ -63,6 +112,8 @@ public class Chip8Emu
 
     private void ExecuteInstruction(byte[] instruction)
     {
+        if (DEBUG_RAW) Console.Out.WriteLine($"----\n{HexStr(instruction)}");
+
         switch (instruction[0] >> 4)
         {
             case 0x0:
@@ -93,32 +144,32 @@ public class Chip8Emu
     {
         int register = instruction[0] & 0b00001111;
         registers[register] += instruction[1];
-        Console.WriteLine($"add {register} 0x{instruction[1]:X4}");
+        if (DEBUG) Console.WriteLine($"add {register} 0x{instruction[1]:X4}");
     }
 
     private void SetRegister(byte[] instruction)
     {
         int register = instruction[0] & 0b00001111;
         registers[register] = instruction[1];
-        Console.WriteLine($"set {register} 0x{instruction[1]:X4}");
+        if (DEBUG) Console.WriteLine($"set {register} 0x{instruction[1]:X4}");
     }
 
     public void Jump(byte[] instruction)
     {
         pc = (short)(((instruction[0] & 0b1111) << 8) + instruction[1]);
-        Console.WriteLine($"jump 0x{pc:X4}");
+        if (DEBUG) Console.WriteLine($"jump 0x{pc:X4}");
     }
 
     private void ClearScreen()
     {
-        Console.WriteLine("cls");
+        if (DEBUG) Console.WriteLine("cls");
         _display.InitGrid();
     }
 
     private void SetInstructionRegister(byte[] instruction)
     {
         _instruction_register = (ushort)(((instruction[0] & 0b1111) << 8) + instruction[1]);
-        Console.WriteLine($"set_i 0x{_instruction_register:X4}");
+        if (DEBUG) Console.WriteLine($"set_i 0x{_instruction_register:X4}");
     }
 
     private void Draw(byte[] instruction)
@@ -129,25 +180,26 @@ public class Chip8Emu
         int y = registers[y_reg] % Display.HEIGHT;
         int n = instruction[1] & 0b00001111;
 
-        Console.WriteLine($"draw {x_reg}, {y_reg}, {n}");        
+        if (DEBUG) Console.WriteLine($"draw {x_reg}, {y_reg}, {n}");
+
         byte[] sprite = _memory.ReadMemory((short)_instruction_register, (short)n);
         registers[0xf] = 0;
+
         for (int yi = 0; yi < n; yi++)
         {
-            int effectiveY = y + yi;
+            int effectiveY = y + yi - 1;
             if (effectiveY > Display.HEIGHT)
             {
                 break;
             }
-            byte mask = 0b10000000;
             for (int xi = 0; xi < 8; xi++)
             {
-                int effectiveX = x + xi;
+                byte mask = (byte)(0b10000000 >> xi);
+                int effectiveX = x + xi - 1;
                 if (effectiveX > Display.WIDTH)
                 {
                     break;
                 }
-                mask >>= xi;
                 var pixelOn = (sprite[yi] & mask) != 0;
                 bool previousValue = _display.GetPixel(effectiveX, effectiveY);
                 if (previousValue && pixelOn)
@@ -161,11 +213,6 @@ public class Chip8Emu
                 }
             }
         }
-    }
-
-    private void ExecuteCycle(Object? source, ElapsedEventArgs e)
-    {
-        RunCycle();
     }
 
     private static string HexStr(byte[] arr)
