@@ -117,10 +117,20 @@ public class Chip8Emu
         switch (instruction[0] >> 4)
         {
             case 0x0:
-                ClearScreen();
+                if (instruction[1] == 0xE0)
+                {
+                    ClearScreen();
+                }
+                else
+                {
+                    Return(instruction);                    
+                }
                 break;
             case 0x1:
                 Jump(instruction);
+                break;
+            case 0x2:
+                Call(instruction);
                 break;
             case 0x3:
                 SkipIfVXeqN(instruction);
@@ -140,6 +150,9 @@ public class Chip8Emu
             case 0x7:
                 Add(instruction);
                 break;
+            case 0x8:
+                LogicOrArithmeticInstruction(instruction);
+                break;
             case 0xA:
                 SetIndexRegister(instruction);
                 break;
@@ -147,8 +160,7 @@ public class Chip8Emu
                 Draw(instruction);
                 break;
             default:
-                Console.WriteLine($"{Convert.ToHexString(instruction)}");
-                throw new Exception("Unkown instruction");
+                throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
         }
     }
 
@@ -159,11 +171,26 @@ public class Chip8Emu
         _display.InitGrid();
     }
 
+    public void Return(byte[] instruction)
+    {
+        // 00EE - return from subroutine
+        pc = _stack.Pop();
+        if (DEBUG) Console.WriteLine($"return 0x{pc:X4}");
+    }    
+
     public void Jump(byte[] instruction)
     {
         // 1NNN - set PC to NNN
         pc = (short)NNN(instruction);
         if (DEBUG) Console.WriteLine($"jump 0x{pc:X4}");
+    }
+
+    public void Call(byte[] instruction)
+    {
+        // 2NNN - Call routine at NNN
+        _stack.Push(pc);
+        pc = (short)NNN(instruction);
+        if (DEBUG) Console.WriteLine($"call 0x{pc:X4}");
     }
 
     public void SkipIfVXeqN(byte[] instruction)
@@ -228,6 +255,76 @@ public class Chip8Emu
         if (DEBUG) Console.WriteLine($"add v{vX:X} 0x{instruction[1]:X2}");
     }
 
+    private void LogicOrArithmeticInstruction(byte[] instruction)
+    {
+        // 8XYI - Logic or arithmetic instruction involving vX and vY registers
+        int vX = SecondNibble(instruction[0]);
+        int vY = FirstNibble(instruction[1]);
+        int i = SecondNibble(instruction[1]);
+
+        switch (i)
+        {
+            case 0x0:
+                // 8XY0: Set vX to vY
+                registers[vX] = registers[vY];
+                if (DEBUG) Console.WriteLine($"v{vX:X} = v{vY:X}");
+                break;
+            case 0x1:
+                // 8XY1: Binary OR
+                registers[vX] |= registers[vY];
+                if (DEBUG) Console.WriteLine($"v{vX:X} |= v{vY:X}");
+                break;
+            case 0x2:
+                // 8XY1: Binary AND
+                registers[vX] &= registers[vY];
+                if (DEBUG) Console.WriteLine($"v{vX:X} &= v{vY:X}");
+                break;
+            case 0x3:
+                // 8XY3: Logical XOR
+                registers[vX] ^= registers[vY];
+                if (DEBUG) Console.WriteLine($"v{vX:X} ^= v{vY:X}");
+                break;
+            case 0x4:
+                // 8XY4: Add vY to vX and set to vX
+                registers[0xF] = 0;
+                if ((int)registers[vX] + (int)registers[vY] > 255)
+                {
+                    // in case of overflow set vF to 1
+                    registers[0xF] = 1;
+                }
+                registers[vX] += registers[vY];
+                if (DEBUG) Console.WriteLine($"v{vX:X} += v{vY:X}");
+                break;                
+            case 0x5:
+                // 8XY5: Subtract vY from vX and set to vX
+                registers[0xF] = (byte)((registers[vX] > registers[vY]) ? 1 : 0);
+                registers[vX] -= registers[vY];
+                if (DEBUG) Console.WriteLine($"v{vX:X} = v{vX:X} - v{vY:X}");
+                break;                
+            case 0x7:
+                // 8XY7: Subtract vX from vY and set to vX
+                registers[0xF] = (byte)((registers[vY] > registers[vX]) ? 1 : 0);
+                registers[vX] = (byte)(registers[vY] - registers[vX]);
+                if (DEBUG) Console.WriteLine($"v{vX:X} = v{vY:X} - v{vX:X}");
+                break;                
+            case 0x6:
+                // 8XY6: Shift vX to the right
+                registers[0xF] = (byte)(registers[vX] & 0b1);
+                registers[vX] >>= 1;
+                if (DEBUG) Console.WriteLine($"v{vX:X} >>= 1");
+                break;                
+            case 0xE:
+                // 8XY6: Shift vX to the left
+                registers[0xF] = (byte)(registers[vX] & 0b10000000);
+                registers[vX] <<= 1;
+                if (DEBUG) Console.WriteLine($"v{vX:X} <<= 1");
+                break;                
+        }
+
+        _index_register = NNN(instruction);
+        if (DEBUG) Console.WriteLine($"set_i 0x{_index_register:X4}");
+    }
+
     private void SetIndexRegister(byte[] instruction)
     {
         // ANNN - set the index register I to the value NNN
@@ -240,29 +337,29 @@ public class Chip8Emu
         // DXYN - draw an N pixels tall sprite 
         // from the memory location that the I index register is holding to the screen, 
         // at the horizontal X coordinate in VX and the Y coordinate in VY
-        int x_reg = SecondNibble(instruction[0]);
-        int y_reg = FirstNibble(instruction[1]);
-        int x = registers[x_reg] % Display.WIDTH;
-        int y = registers[y_reg] % Display.HEIGHT;
+        int vX = SecondNibble(instruction[0]);
+        int vY = FirstNibble(instruction[1]);
         int n = SecondNibble(instruction[1]);
+        int x = registers[vX] % Display.WIDTH;
+        int y = registers[vY] % Display.HEIGHT;
 
-        if (DEBUG) Console.WriteLine($"draw v{x_reg:X}, v{y_reg:X}, {n}");
+        if (DEBUG) Console.WriteLine($"draw v{vX:X}, v{vY:X}, {n}");
 
         byte[] sprite = _memory.ReadMemory((short)_index_register, (short)n);
         registers[0xf] = 0;
 
         for (int yi = 0; yi < n; yi++)
         {
-            int effectiveY = y + yi - 1;
-            if (effectiveY > Display.HEIGHT)
+            int effectiveY = y + yi;
+            if (effectiveY >= Display.HEIGHT)
             {
                 break;
             }
             for (int xi = 0; xi < 8; xi++)
             {
                 byte mask = (byte)(0b10000000 >> xi);
-                int effectiveX = x + xi - 1;
-                if (effectiveX > Display.WIDTH)
+                int effectiveX = x + xi;
+                if (effectiveX >= Display.WIDTH)
                 {
                     break;
                 }

@@ -1,12 +1,11 @@
-﻿using System.Numerics;
-using SDL3;
+﻿using SDL3;
 namespace Chip8.components
 {
     public class Display
     {
         public const int WIDTH = 64;
         public const int HEIGHT = 32;
-        private const int displayScale = 20;
+        private const int displayScale = 15;
         private const int windowWidth = WIDTH * displayScale;
         private const int windowHeight = HEIGHT * displayScale;
         private const int singlePixel = displayScale;
@@ -34,7 +33,6 @@ namespace Chip8.components
         {
             return displayGrid[x, y];
         }
-
 
         public void SetPixel(int x, int y, bool v)
         {
