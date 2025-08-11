@@ -1,6 +1,5 @@
 using Chip8.components;
 using Chip8.util;
-using SDL3;
 
 namespace Chip8
 {
@@ -28,71 +27,27 @@ namespace Chip8
         // used to simulate CPU clock
         private System.Timers.Timer _cpuTimer = new(1000.0 / 700); // ~ 700 times per second
 
-        // SDL things
-        private static bool loop = true;
-        private static readonly uint FPS = 60;
-        private static readonly uint FRAME_TARGET_TIME = 1000 / FPS;
-        private static ulong lastFameTime = 0;
-
         public Chip8Emu()
         {
             Font.Load(_memory);
         }
 
-        public void LoadRom(string path)
+        public void Run(string path)
+        {
+            LoadRom(path);
+            _cpuTimer = Timer.MakeTimer(RunCycle);
+            MainLoop.Run(_display);
+            _display.Close();
+        }
+
+        private void LoadRom(string path)
         {
             byte[] bytes = File.ReadAllBytes(path);
             pc = 0x200;
             _memory.SetMemory(0x200, bytes);
         }
 
-        public void Start()
-        {
-            _cpuTimer = Timer.MakeTimer(RunCycle);
-            // main SDL loop
-            while (loop)
-            {
-                Wait();
-                ProcessInput();
-                _display.Draw();
-            }
-            _display.Close();
-        }
-
-        private static double Wait()
-        {
-            uint timeToWait = FRAME_TARGET_TIME - (uint)(SDL.GetTicks() - lastFameTime);
-            if (timeToWait > 0 && timeToWait <= FRAME_TARGET_TIME)
-            {
-                SDL.Delay(timeToWait);
-            }
-            double deltaTime = (SDL.GetTicks() - lastFameTime) / 1000.0;
-            lastFameTime = SDL.GetTicks();
-            return deltaTime;
-        }
-
-        private static void ProcessInput()
-        {
-            while (SDL.PollEvent(out var e))
-            {
-                SDL.EventType type = (SDL.EventType)e.Type;
-                if (type == SDL.EventType.Quit)
-                {
-                    loop = false;
-                }
-
-                if (type == SDL.EventType.KeyDown)
-                {
-                    SDL.Keycode key = e.Key.Key;
-                    if (key == SDL.Keycode.Escape || key == SDL.Keycode.Q)
-                    {
-                        loop = false;
-                    }
-                }
-            }
-        }
-
-        public void RunCycle()
+        internal void RunCycle()
         {
             byte[] instruction = FetchInstruction();
             ExecuteInstruction(instruction);
@@ -177,21 +132,21 @@ namespace Chip8
             _display.InitGrid();
         }
 
-        public void Return(byte[] instruction)
+        private void Return(byte[] instruction)
         {
             // 00EE - return from subroutine
             pc = _stack.Pop();
             if (DEBUG) Console.WriteLine($"return 0x{pc:X4}");
         }
 
-        public void Jump(byte[] instruction)
+        private void Jump(byte[] instruction)
         {
             // 1NNN - set PC to NNN
             pc = (short)NNN(instruction);
             if (DEBUG) Console.WriteLine($"jump 0x{pc:X4}");
         }
 
-        public void Call(byte[] instruction)
+        private void Call(byte[] instruction)
         {
             // 2NNN - Call routine at NNN
             _stack.Push(pc);
@@ -199,7 +154,7 @@ namespace Chip8
             if (DEBUG) Console.WriteLine($"call 0x{pc:X4}");
         }
 
-        public void SkipIfVXeqN(byte[] instruction)
+        private void SkipIfVXeqN(byte[] instruction)
         {
             // 3XNN - if vX == NN, skip next instruction
             int vX = SecondNibble(instruction[0]);
@@ -210,7 +165,7 @@ namespace Chip8
             if (DEBUG) Console.WriteLine($"skip_if v{vX:X} == 0x{instruction[1]:X2}");
         }
 
-        public void SkipIfVXneqN(byte[] instruction)
+        private void SkipIfVXneqN(byte[] instruction)
         {
             // 4XNN - if vX != NN, skip next instruction
             int vX = SecondNibble(instruction[0]);
@@ -221,7 +176,7 @@ namespace Chip8
             if (DEBUG) Console.WriteLine($"skip_if v{vX:X} != 0x{instruction[1]:X2}");
         }
 
-        public void SkipIfVXeqVY(byte[] instruction)
+        private void SkipIfVXeqVY(byte[] instruction)
         {
             // 5XY0 - if VX == VY, skip next instruction
             int vX = SecondNibble(instruction[0]);
@@ -233,7 +188,7 @@ namespace Chip8
             if (DEBUG) Console.WriteLine($"skip_if v{vX:X} == v{vY:X}");
         }
 
-        public void SkipIfVXneqVY(byte[] instruction)
+        private void SkipIfVXneqVY(byte[] instruction)
         {
             // 9XY0 - if VX != VY, skip next instruction
             int vX = SecondNibble(instruction[0]);
