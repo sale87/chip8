@@ -15,7 +15,7 @@ public class Chip8Emu
     public short pc = 0;
 
     // points to locations in memory
-    private ushort _instruction_register = 0;
+    private short _index_register = 0;
 
     // general purpose variable registers, V0 - VF
     private readonly byte[] registers = new byte[16];
@@ -122,6 +122,18 @@ public class Chip8Emu
             case 0x1:
                 Jump(instruction);
                 break;
+            case 0x3:
+                SkipIfVXeqN(instruction);
+                break;
+            case 0x4:
+                SkipIfVXneqN(instruction);
+                break;
+            case 0x5:
+                SkipIfVXeqVY(instruction);
+                break;
+            case 0x9:
+                SkipIfVXneqVY(instruction);
+                break;
             case 0x6:
                 SetRegister(instruction);
                 break;
@@ -129,7 +141,7 @@ public class Chip8Emu
                 Add(instruction);
                 break;
             case 0xA:
-                SetInstructionRegister(instruction);
+                SetIndexRegister(instruction);
                 break;
             case 0xD:
                 Draw(instruction);
@@ -140,49 +152,103 @@ public class Chip8Emu
         }
     }
 
-    private void Add(byte[] instruction)
-    {
-        int register = instruction[0] & 0b00001111;
-        registers[register] += instruction[1];
-        if (DEBUG) Console.WriteLine($"add {register} 0x{instruction[1]:X4}");
-    }
-
-    private void SetRegister(byte[] instruction)
-    {
-        int register = instruction[0] & 0b00001111;
-        registers[register] = instruction[1];
-        if (DEBUG) Console.WriteLine($"set {register} 0x{instruction[1]:X4}");
-    }
-
-    public void Jump(byte[] instruction)
-    {
-        pc = (short)(((instruction[0] & 0b1111) << 8) + instruction[1]);
-        if (DEBUG) Console.WriteLine($"jump 0x{pc:X4}");
-    }
-
     private void ClearScreen()
     {
+        // 00E0 - clear screen
         if (DEBUG) Console.WriteLine("cls");
         _display.InitGrid();
     }
 
-    private void SetInstructionRegister(byte[] instruction)
+    public void Jump(byte[] instruction)
     {
-        _instruction_register = (ushort)(((instruction[0] & 0b1111) << 8) + instruction[1]);
-        if (DEBUG) Console.WriteLine($"set_i 0x{_instruction_register:X4}");
+        // 1NNN - set PC to NNN
+        pc = (short)NNN(instruction);
+        if (DEBUG) Console.WriteLine($"jump 0x{pc:X4}");
+    }
+
+    public void SkipIfVXeqN(byte[] instruction)
+    {
+        // 3XNN - if vX == NN, skip next instruction
+        int vX = SecondNibble(instruction[0]);
+        if (registers[vX] == instruction[1])
+        {
+            pc += 2;
+        }
+        if (DEBUG) Console.WriteLine($"skip_if v{vX:X} == 0x{instruction[1]:X2}");
+    }
+
+    public void SkipIfVXneqN(byte[] instruction)
+    {
+        // 4XNN - if vX != NN, skip next instruction
+        int vX = SecondNibble(instruction[0]);
+        if (registers[vX] != instruction[1])
+        {
+            pc += 2;
+        }
+        if (DEBUG) Console.WriteLine($"skip_if v{vX:X} != 0x{instruction[1]:X2}");
+    }
+
+    public void SkipIfVXeqVY(byte[] instruction)
+    {
+        // 5XY0 - if VX == VY, skip next instruction
+        int vX = SecondNibble(instruction[0]);
+        int vY = FirstNibble(instruction[1]);
+        if (registers[vX] == registers[vY])
+        {
+            pc += 2;
+        }
+        if (DEBUG) Console.WriteLine($"skip_if v{vX:X} == v{vY:X}");
+    }
+
+    public void SkipIfVXneqVY(byte[] instruction)
+    {
+        // 9XY0 - if VX != VY, skip next instruction
+        int vX = SecondNibble(instruction[0]);
+        int vY = FirstNibble(instruction[1]);
+        if (registers[vX] != registers[vY])
+        {
+            pc += 2;
+        }
+        if (DEBUG) Console.WriteLine($"skip_if v{vX:X} != v{vY:X}");
+    }
+
+    private void SetRegister(byte[] instruction)
+    {
+        // 6XNN - set the register VX to the value NN
+        int vX = SecondNibble(instruction[0]);
+        registers[vX] = instruction[1];
+        if (DEBUG) Console.WriteLine($"set {vX} 0x{instruction[1]:X4}");
+    }
+
+    private void Add(byte[] instruction)
+    {
+        // 7XNN - add the value NN to VX
+        int vX = SecondNibble(instruction[0]);
+        registers[vX] += instruction[1];
+        if (DEBUG) Console.WriteLine($"add {vX} 0x{instruction[1]:X4}");
+    }
+
+    private void SetIndexRegister(byte[] instruction)
+    {
+        // ANNN - set the index register I to the value NNN
+        _index_register = NNN(instruction);
+        if (DEBUG) Console.WriteLine($"set_i 0x{_index_register:X4}");
     }
 
     private void Draw(byte[] instruction)
     {
-        int x_reg = instruction[0] & 0b00001111;
-        int y_reg = (instruction[1] & 0b11110000) >> 4;
+        // DXYN - draw an N pixels tall sprite 
+        // from the memory location that the I index register is holding to the screen, 
+        // at the horizontal X coordinate in VX and the Y coordinate in VY
+        int x_reg = SecondNibble(instruction[0]);
+        int y_reg = FirstNibble(instruction[1]);
         int x = registers[x_reg] % Display.WIDTH;
         int y = registers[y_reg] % Display.HEIGHT;
-        int n = instruction[1] & 0b00001111;
+        int n = SecondNibble(instruction[1]);
 
         if (DEBUG) Console.WriteLine($"draw {x_reg}, {y_reg}, {n}");
 
-        byte[] sprite = _memory.ReadMemory((short)_instruction_register, (short)n);
+        byte[] sprite = _memory.ReadMemory((short)_index_register, (short)n);
         registers[0xf] = 0;
 
         for (int yi = 0; yi < n; yi++)
@@ -213,6 +279,21 @@ public class Chip8Emu
                 }
             }
         }
+    }
+
+    private static int FirstNibble(byte halfInstruction)
+    {
+        return (halfInstruction & 0b11110000) >> 4;
+    }
+
+    private static int SecondNibble(byte halfInstruction)
+    {
+        return halfInstruction & 0b00001111;
+    }
+
+    private static short NNN(byte[] instruction)
+    {
+        return (short)((SecondNibble(instruction[0]) << 8) + instruction[1]);
     }
 
     private static string HexStr(byte[] arr)
