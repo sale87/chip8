@@ -1,0 +1,23 @@
+
+- [x] 3xnn - if vX == nn, skip next opcode
+- [x] 4xnn - if vX != nn, skip next opcode
+- [x] 5xy0 - if vX == vY, skip next opcode
+- [x] 7xnn - vX += nn
+- [x] 9xy0 - if vX != vY, skip next opcode
+- [x] 1nnn - jump nnn (goto)
+- [ ] 2nnn - call nnn (subroutine)
+- [ ] 00EE - return from subroutine
+- [ ] 8xy0 - vX = vY
+- [ ] 8xy1 - vX |= vY
+- [ ] 8xy2 - vX &= vY
+- [ ] 8xy3 - vX ^= vY
+- [ ] 8xy4 - vX += vY
+- [ ] 8xy5 - vX -= vY
+- [ ] 8xy7 - vX = vY - vX
+- [ ] 8xy6 - vX = vY >> 1 or vX = vX >> 1 depending on quirks
+- [ ] 8xyE - vX = vY << 1 or vX = vX << 1 depending on quirks
+- [ ] Fx65 - load registers v0 - vX from memory starting at i
+- [ ] Fx55 - save registers v0 - vX to memory starting at i
+- [ ] Fx33 - store binary-coded decimal representation of vX to memory at i, i + 1 and i + 2
+- [ ] Fx1E - i += vX
+- [ ] Registers - The v0 - vF registers should be 8 bits wide. This tests to see if it can overflow your registers.

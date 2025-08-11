@@ -1,4 +1,5 @@
-﻿using SDL3;
+﻿using System.Numerics;
+using SDL3;
 namespace Chip8.components
 {
     public class Display
@@ -9,6 +10,10 @@ namespace Chip8.components
         private const int windowWidth = WIDTH * displayScale;
         private const int windowHeight = HEIGHT * displayScale;
         private const int singlePixel = displayScale;
+
+        private readonly byte[] BG_COLOR = [0, 0, 0, 255];
+        private readonly byte[] FG_COLOR = [150, 150, 150, 255];
+        private readonly byte[] GRID_COLOR = [20, 20, 20, 255];
 
         private readonly bool[,] displayGrid;
 
@@ -96,11 +101,11 @@ namespace Chip8.components
             }
         }
 
-        private static void DrawPixel(
+        private void DrawPixel(
             nint renderer, int x, int y, bool borderLeft, bool borderRight, bool borderTop, bool borderBottom
             )
         {
-            SDL.SetRenderDrawColor(renderer, 0x34, 0x68, 0x56, 255);
+            SDL.SetRenderDrawColor(renderer, FG_COLOR[0], FG_COLOR[1], FG_COLOR[2], FG_COLOR[3]);
             SDL.FRect rect = new()
             {
                 X = x * displayScale,
@@ -110,7 +115,7 @@ namespace Chip8.components
             };
             SDL.RenderFillRect(renderer, rect);
 
-            SDL.SetRenderDrawColor(renderer, 0x88, 0xc0, 0x70, 255);
+            SDL.SetRenderDrawColor(renderer, GRID_COLOR[0], GRID_COLOR[1], GRID_COLOR[2], GRID_COLOR[3]);
             if (borderLeft)
             {
                 SDL.RenderLine(renderer, rect.X, rect.Y, rect.X, rect.Y + singlePixel);
@@ -130,9 +135,9 @@ namespace Chip8.components
 
         }
 
-        private static void DrawGrid(nint renderer)
+        private void DrawGrid(nint renderer)
         {
-            SDL.SetRenderDrawColor(renderer, 0x88, 0xc0, 0x70, 255);
+            SDL.SetRenderDrawColor(renderer, GRID_COLOR[0], GRID_COLOR[1], GRID_COLOR[2], GRID_COLOR[3]);
             for (int x = 0; x < WIDTH; x++)
             {
                 SDL.RenderLine(renderer, x * displayScale, 0, x * displayScale, windowHeight);
@@ -143,9 +148,9 @@ namespace Chip8.components
             }
         }
 
-        private static void DrawBackground(nint renderer)
+        private void DrawBackground(nint renderer)
         {
-            SDL.SetRenderDrawColor(renderer, 0xe0, 0xf8, 0xd0, (byte)SDL.AlphaOpaque);
+            SDL.SetRenderDrawColor(renderer, BG_COLOR[0], BG_COLOR[1], BG_COLOR[2], BG_COLOR[3]);
             SDL.RenderClear(renderer);
         }
 

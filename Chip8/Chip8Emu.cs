@@ -4,7 +4,7 @@ using SDL3;
 
 public class Chip8Emu
 {
-    private readonly bool DEBUG_RAW = false;
+    private readonly bool DEBUG_RAW = true;
     private readonly bool DEBUG = true;
 
     private readonly Memory _memory = new();
@@ -148,7 +148,7 @@ public class Chip8Emu
                 break;
             default:
                 Console.WriteLine($"{Convert.ToHexString(instruction)}");
-                break;
+                throw new Exception("Unkown instruction");
         }
     }
 
@@ -217,7 +217,7 @@ public class Chip8Emu
         // 6XNN - set the register VX to the value NN
         int vX = SecondNibble(instruction[0]);
         registers[vX] = instruction[1];
-        if (DEBUG) Console.WriteLine($"set {vX} 0x{instruction[1]:X4}");
+        if (DEBUG) Console.WriteLine($"set v{vX:X} 0x{instruction[1]:X2}");
     }
 
     private void Add(byte[] instruction)
@@ -225,7 +225,7 @@ public class Chip8Emu
         // 7XNN - add the value NN to VX
         int vX = SecondNibble(instruction[0]);
         registers[vX] += instruction[1];
-        if (DEBUG) Console.WriteLine($"add {vX} 0x{instruction[1]:X4}");
+        if (DEBUG) Console.WriteLine($"add v{vX:X} 0x{instruction[1]:X2}");
     }
 
     private void SetIndexRegister(byte[] instruction)
@@ -246,7 +246,7 @@ public class Chip8Emu
         int y = registers[y_reg] % Display.HEIGHT;
         int n = SecondNibble(instruction[1]);
 
-        if (DEBUG) Console.WriteLine($"draw {x_reg}, {y_reg}, {n}");
+        if (DEBUG) Console.WriteLine($"draw v{x_reg:X}, v{y_reg:X}, {n}");
 
         byte[] sprite = _memory.ReadMemory((short)_index_register, (short)n);
         registers[0xf] = 0;
