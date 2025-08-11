@@ -1,243 +1,132 @@
-00E0 (clear screen)
-00E0
-ANNN (set index register I)
-A22A
-6XNN (set register VX)
-600C
-6XNN (set register VX)
-6108
-DXYN (display/draw)
-D01F
-7XNN (add value to register VX)
-7009
-ANNN (set index register I)
-A239
-DXYN (display/draw)
-D01F
-ANNN (set index register I)
-A248
-7XNN (add value to register VX)
-7008
-DXYN (display/draw)
-D01F
-7XNN (add value to register VX)
-7004
-ANNN (set index register I)
-A257
-DXYN (display/draw)
-D01F
-7XNN (add value to register VX)
-7008
-ANNN (set index register I)
-A266
-DXYN (display/draw)
-D01F
-7XNN (add value to register VX)
-7008
-ANNN (set index register I)
-A275
-DXYN (display/draw)
-D01F
-1NNN (jump)
-1228
-FF00
-FF00
-3C00
-3C00
-3C00
-3C00
-FF00
-FFFF
-00E0 (clear screen)
-00FF
-00E0 (clear screen)
-0038
-00E0 (clear screen)
-003F
-00E0 (clear screen)
-003F
-00E0 (clear screen)
-0038
-00E0 (clear screen)
-00FF
-00E0 (clear screen)
-00FF
-8000
-E000
-E000
-8000
-8000
-E000
-E000
-80F8
-00E0 (clear screen)
-00FC
-00E0 (clear screen)
-003E
-00E0 (clear screen)
-003F
-00E0 (clear screen)
-003B
-00E0 (clear screen)
-0039
-00E0 (clear screen)
-00F8
-00E0 (clear screen)
-00F8
-00E0 (clear screen)
-0300
-00E0 (clear screen)
-0700
-00E0 (clear screen)
-0F00
-BF00
-FB00
-F300
-E300
-43E0
-00E0 (clear screen)
-00E0
-00E0 (clear screen)
-0080
-00E0 (clear screen)
-0080
-00E0 (clear screen)
-0080
-00E0 (clear screen)
-0080
-00E0 (clear screen)
-00E0
-00E0 (clear screen)
-00E0
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
-00E0 (clear screen)
-0000
+cls
+set_i 0x022A
+set 0 0x000C
+set 1 0x0008
+draw
+add 0 0x0009
+set_i 0x0239
+draw
+set_i 0x0248
+add 0 0x0008
+draw
+add 0 0x0004
+set_i 0x0257
+draw
+add 0 0x0008
+set_i 0x0266
+draw
+add 0 0x0008
+set_i 0x0275
+draw
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
+jump 0x0228
