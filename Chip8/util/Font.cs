@@ -27,12 +27,7 @@ namespace Chip8.util
 
         public static void Load(Memory memory)
         {
-            short addr = FONT_START_ADDR;
-            foreach (var b in _font)
-            {
-                memory.SetMemory(addr, b);
-                addr++;
-            }
+            memory.SetMemory(FONT_START_ADDR, _font);
         }
     }
 }

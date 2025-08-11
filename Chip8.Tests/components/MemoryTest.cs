@@ -31,4 +31,13 @@ public class MemoryTest
         _memory.SetMemory(addr, data);
         Assert.Equal(data, _memory.ReadMemory(addr, 1)[0]);
     }
+
+        [Fact]
+    public void TestSetMemoryArray()
+    {
+        short addr = 0xFF;
+        byte[] data = {0xF0, 0xA1};
+        _memory.SetMemory(addr, data);
+        Assert.Equal(data, _memory.ReadMemory(addr, 2));
+    }
 }

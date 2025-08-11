@@ -11,7 +11,16 @@ namespace Chip8.components
             {
                 throw new ArgumentOutOfRangeException($"Cannot set value to address {addr}.");
             }
-            this._memory[addr] = b;
+            _memory[addr] = b;
+        }
+
+        public void SetMemory(short addr, byte[] bytes)
+        {
+            foreach (var b in bytes)
+            {
+                _memory[addr] = b;
+                addr++;
+            }
         }
 
         public byte[] ReadMemory(short start, short length)
