@@ -6,9 +6,7 @@ internal class Program
     {
         Chip8Emu c8 = new();
         c8.LoadRom("../../../../roms/IBM Logo.ch8");
-        for (int i = 0; i < 132; i++)
-        {
-            c8.RunCycle();    
-        }
+        c8.Start();
+        Console.In.ReadLine();
     }
 }

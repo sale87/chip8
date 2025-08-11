@@ -1,4 +1,5 @@
 using System.Timers;
+using System.Xml.Serialization;
 using Chip8.components;
 using Chip8.util;
 
@@ -41,6 +42,12 @@ public class Chip8Emu
         _memory.SetMemory(0x200, bytes);
     }
 
+    public void Start()
+    {
+        _cpuTimer.Start();
+        // main sdl loop
+    }
+
     public void RunCycle()
     {
         byte[] instruction = FetchInstruction();
@@ -74,7 +81,7 @@ public class Chip8Emu
                 SetInstructionRegister(instruction);
                 break;
             case 0xD:
-                Draw();
+                Draw(instruction);
                 break;
             default:
                 Console.WriteLine($"{Convert.ToHexString(instruction)}");
@@ -114,9 +121,46 @@ public class Chip8Emu
         Console.WriteLine($"set_i 0x{_instruction_register:X4}");
     }
 
-    private static void Draw()
+    private void Draw(byte[] instruction)
     {
-        Console.WriteLine("draw");
+        int x_reg = instruction[0] & 0b00001111;
+        int y_reg = (instruction[1] & 0b11110000) >> 4;
+        int x = registers[x_reg] % Display.WIDTH;
+        int y = registers[y_reg] % Display.HEIGHT;
+        int n = instruction[1] & 0b00001111;
+
+        Console.WriteLine($"draw {x_reg}, {y_reg}, {n}");        
+        byte[] sprite = _memory.ReadMemory((short)_instruction_register, (short)n);
+        registers[0xf] = 0;
+        for (int yi = 0; yi < n; yi++)
+        {
+            int effectiveY = y + yi;
+            if (effectiveY > Display.HEIGHT)
+            {
+                break;
+            }
+            byte mask = 0b10000000;
+            for (int xi = 0; xi < 8; xi++)
+            {
+                int effectiveX = x + xi;
+                if (effectiveX > Display.WIDTH)
+                {
+                    break;
+                }
+                mask >>= xi;
+                var pixelOn = (sprite[yi] & mask) != 0;
+                bool previousValue = _display.GetPixel(effectiveX, effectiveY);
+                if (previousValue && pixelOn)
+                {
+                    registers[0xf] = 1;
+                    _display.SetPixel(effectiveX, effectiveY, false);
+                }
+                else
+                {
+                    _display.SetPixel(effectiveX, effectiveY, pixelOn);
+                }
+            }
+        }
     }
 
     private void ExecuteCycle(Object? source, ElapsedEventArgs e)

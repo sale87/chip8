@@ -25,6 +25,12 @@ namespace Chip8.components
             return new bool[Display.WIDTH, Display.HEIGHT];
         }
 
+        public bool GetPixel(int x, int y)
+        {
+            return displayGrid[x, y];
+        }
+
+
         public void SetPixel(int x, int y, bool v)
         {
             displayGrid[x, y] = v;
