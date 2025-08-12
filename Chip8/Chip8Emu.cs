@@ -5,12 +5,16 @@ namespace Chip8
 {
     public class Chip8Emu
     {
-        private readonly bool DEBUG_RAW = true;
-        private readonly bool DEBUG = true;
+        private readonly bool DEBUG_RAW = false;
+        private readonly bool DEBUG = false;
 
         private readonly Memory _memory = new();
 
         private readonly Display _display = new();
+
+        private readonly Keyboard _keyboard = new();
+
+        private readonly DelayTimer _delayTimer = new();
 
         // program counter, points to current instruction in memory, possible values 0 - 4096
         public short pc = 0;
@@ -36,7 +40,8 @@ namespace Chip8
         {
             LoadRom(path);
             _cpuTimer = Timer.MakeTimer(RunCycle);
-            MainLoop.Run(_display);
+            _delayTimer.StartTimer();
+            MainLoop.Run(_display, _keyboard);
             _display.Close();
         }
 
@@ -104,6 +109,9 @@ namespace Chip8
                     break;
                 case 0xD:
                     Draw(instruction);
+                    break;
+                case 0xE:
+                    EInstruction(instruction);
                     break;
                 case 0xF:
                     FInstruction(instruction);
@@ -343,11 +351,39 @@ namespace Chip8
             }
         }
 
+        private void EInstruction(byte[] instruction)
+        {
+            int vX = SecondNibble(instruction[0]);
+            switch (instruction[1])
+            {                
+                case 0xA1:
+                    if (!_keyboard.IsKeyPressed(registers[vX]))
+                    {
+                        pc += 2;
+                    }
+                    break;
+                case 0x9E:
+                    if (_keyboard.IsKeyPressed(registers[vX]))
+                    {
+                        pc += 2;
+                    }
+                    break;
+                default:
+                    throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
+            }
+        }
+
         private void FInstruction(byte[] instruction)
         {
             int vX = SecondNibble(instruction[0]);
             switch (instruction[1])
             {
+                case 0x07:
+                    registers[vX] = _delayTimer.GetValue();
+                    break;
+                case 0x15:
+                    _delayTimer.SetValue(registers[vX]);
+                    break;
                 case 0x33:
                     // convert vX to decimal MNP and then
                     // store M in memory[I], N in memory[I + 1], and P in memory[I + 2]
@@ -370,6 +406,19 @@ namespace Chip8
                     for (int i = 0; i <= vX; i++)
                     {
                         registers[i] = _memory.ReadMemory((short)(_index_register + i), 1)[0];
+                    }
+                    break;
+                case 0x0A:
+                    // wait for keypress
+                    while (_keyboard.GetPressedKey() == -1)
+                    {
+                        Thread.Sleep(1000 / 700);
+                    }
+                    registers[vX] = (byte)_keyboard.GetPressedKey();
+                    // wait for key release
+                    while (_keyboard.IsKeyPressed(registers[vX]))
+                    {
+                        Thread.Sleep(1000 / 700);
                     }
                     break;
                 case 0x1E:

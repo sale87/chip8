@@ -11,8 +11,7 @@ class Timer
             }
             catch (Exception exception)
             {
-                ThreadPool.QueueUserWorkItem(
-                    _ => { throw new Exception("Exception on timer.", exception); });
+                ThreadPool.QueueUserWorkItem(_ => { throw new Exception("Exception on timer.", exception); });
             }
         };
         _cpuTimer.AutoReset = false;

@@ -14,19 +14,14 @@ namespace Chip8.components
         private readonly byte[] FG_COLOR = [150, 150, 150, 255];
         private readonly byte[] GRID_COLOR = [20, 20, 20, 255];
 
-        private readonly bool[,] displayGrid;
+        private bool[,] displayGrid = new bool[Display.WIDTH, Display.HEIGHT];
 
         private nint renderer = 0;
         private nint window = 0;
 
-        public Display()
+        public void InitGrid()
         {
-            this.displayGrid = InitGrid();
-        }
-
-        public bool[,] InitGrid()
-        {
-            return new bool[Display.WIDTH, Display.HEIGHT];
+            displayGrid = new bool[Display.WIDTH, Display.HEIGHT];
         }
 
         public bool GetPixel(int x, int y)
