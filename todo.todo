@@ -16,8 +16,8 @@
 - [x] 8xy7 - vX = vY - vX
 - [x] 8xy6 - vX = vY >> 1 or vX = vX >> 1 depending on quirks
 - [x] 8xyE - vX = vY << 1 or vX = vX << 1 depending on quirks
-- [ ] Fx65 - load registers v0 - vX from memory starting at i
-- [ ] Fx55 - save registers v0 - vX to memory starting at i
-- [ ] Fx33 - store binary-coded decimal representation of vX to memory at i, i + 1 and i + 2
-- [ ] Fx1E - i += vX
+- [x] Fx65 - load registers v0 - vX from memory starting at i
+- [x] Fx55 - save registers v0 - vX to memory starting at i
+- [x] Fx33 - store binary-coded decimal representation of vX to memory at i, i + 1 and i + 2
+- [x] Fx1E - i += vX
 - [ ] Registers - The v0 - vF registers should be 8 bits wide. This tests to see if it can overflow your registers.

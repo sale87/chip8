@@ -105,6 +105,9 @@ namespace Chip8
                 case 0xD:
                     Draw(instruction);
                     break;
+                case 0xF:
+                    FInstruction(instruction);
+                    break;
                 default:
                     throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
             }
@@ -223,6 +226,11 @@ namespace Chip8
             int vY = FirstNibble(instruction[1]);
             int i = SecondNibble(instruction[1]);
 
+            if (vX == 0 && vY == 6)
+            {
+                Console.Out.WriteLine();
+            }
+
             switch (i)
             {
                 case 0x0:
@@ -247,37 +255,39 @@ namespace Chip8
                     break;
                 case 0x4:
                     // 8XY4: Add vY to vX and set to vX
-                    registers[0xF] = 0;
-                    if ((int)registers[vX] + (int)registers[vY] > 255)
-                    {
-                        // in case of overflow set vF to 1
-                        registers[0xF] = 1;
-                    }
+                    byte pre8XY4 = registers[vX];
                     registers[vX] += registers[vY];
+                    // in case of overflow set vF to 1
+                    registers[0xF] = (byte)((pre8XY4 > registers[vX]) ? 1 : 0);
                     if (DEBUG) Console.WriteLine($"v{vX:X} += v{vY:X}");
                     break;
                 case 0x5:
                     // 8XY5: Subtract vY from vX and set to vX
-                    registers[0xF] = (byte)((registers[vX] > registers[vY]) ? 1 : 0);
+                    byte pre8XY5 = registers[vX];
                     registers[vX] -= registers[vY];
+                    // in case of underflow set vF to 1
+                    registers[0xF] = (byte)((pre8XY5 < registers[vX]) ? 0 : 1);
                     if (DEBUG) Console.WriteLine($"v{vX:X} = v{vX:X} - v{vY:X}");
                     break;
                 case 0x7:
                     // 8XY7: Subtract vX from vY and set to vX
-                    registers[0xF] = (byte)((registers[vY] > registers[vX]) ? 1 : 0);
+                    byte pre8XY7 = registers[vX];
                     registers[vX] = (byte)(registers[vY] - registers[vX]);
+                    registers[0xF] = (byte)((pre8XY7 > registers[vY]) ? 0 : 1);
                     if (DEBUG) Console.WriteLine($"v{vX:X} = v{vY:X} - v{vX:X}");
                     break;
                 case 0x6:
                     // 8XY6: Shift vX to the right
-                    registers[0xF] = (byte)(registers[vX] & 0b1);
+                    byte pre8XY6 = registers[vX];
                     registers[vX] >>= 1;
+                    registers[0xF] = (byte)(pre8XY6 & 0b1);
                     if (DEBUG) Console.WriteLine($"v{vX:X} >>= 1");
                     break;
                 case 0xE:
-                    // 8XY6: Shift vX to the left
-                    registers[0xF] = (byte)(registers[vX] & 0b10000000);
+                    // 8XYE: Shift vX to the left
+                    byte pre8XYE = registers[vX];
                     registers[vX] <<= 1;
+                    registers[0xF] = (byte)((pre8XYE & 0b10000000) >> 7);
                     if (DEBUG) Console.WriteLine($"v{vX:X} <<= 1");
                     break;
             }
@@ -331,11 +341,49 @@ namespace Chip8
                         registers[0xf] = 1;
                         _display.SetPixel(effectiveX, effectiveY, false);
                     }
-                    else
+                    else if (pixelOn)
                     {
                         _display.SetPixel(effectiveX, effectiveY, pixelOn);
                     }
                 }
+            }
+        }
+
+        private void FInstruction(byte[] instruction)
+        {
+            int vX = SecondNibble(instruction[0]);
+            switch (instruction[1])
+            {
+                case 0x33:
+                    // convert vX to decimal MNP and then
+                    // store M in memory[I], N in memory[I + 1], and P in memory[I + 2]
+                    byte val = registers[vX];
+                    _memory.SetMemory((short)(_index_register + 2), (byte)(val % 10));
+                    val /= 10;
+                    _memory.SetMemory((short)(_index_register + 1), (byte)(val % 10));
+                    val /= 10;
+                    _memory.SetMemory((short)_index_register, (byte)(val % 10));
+                    break;
+                case 0x55:
+                    // store values from V0 - VX to memory[I] - memory[I + X]
+                    for (int i = 0; i <= vX; i++)
+                    {
+                        _memory.SetMemory((short)(_index_register + i), registers[i]);
+                    }
+                    break;
+                case 0x65:
+                    // load values from memory[I] - memory[I + X] to V0 - VX 
+                    for (int i = 0; i <= vX; i++)
+                    {
+                        registers[i] = _memory.ReadMemory((short)(_index_register + i), 1)[0];
+                    }
+                    break;
+                case 0x1E:
+                    // add value from vX to I
+                    _index_register += registers[vX];
+                    break;
+                default:
+                    throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
             }
         }
 
