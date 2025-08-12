@@ -246,20 +246,20 @@ namespace Chip8
                     break;
                 case 0x1:
                     // 8XY1: Binary OR
-                    registers[0xF] = 0;
                     registers[vX] |= registers[vY];
+                    registers[0xF] = 0;
                     if (DEBUG) Console.WriteLine($"v{vX:X} |= v{vY:X}");
                     break;
                 case 0x2:
                     // 8XY1: Binary AND
-                    registers[0xF] = 0;
                     registers[vX] &= registers[vY];
+                    registers[0xF] = 0;
                     if (DEBUG) Console.WriteLine($"v{vX:X} &= v{vY:X}");
                     break;
                 case 0x3:
                     // 8XY3: Logical XOR
-                    registers[0xF] = 0;
                     registers[vX] ^= registers[vY];
+                    registers[0xF] = 0;
                     if (DEBUG) Console.WriteLine($"v{vX:X} ^= v{vY:X}");
                     break;
                 case 0x4:

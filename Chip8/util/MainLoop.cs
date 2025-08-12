@@ -7,7 +7,7 @@ namespace Chip8.util
     {
         // SDL things
         private static bool loop = true;
-        private static readonly uint FPS = 900;
+        private static readonly uint FPS = 700;
         private static readonly uint FRAME_TARGET_TIME = 1000 / FPS;
         private static ulong lastFameTime = 0;
 
