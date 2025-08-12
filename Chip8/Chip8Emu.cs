@@ -107,6 +107,9 @@ namespace Chip8
                 case 0xA:
                     SetIndexRegister(instruction);
                     break;
+                case 0xB:
+                    JumpWithOffset(instruction);
+                    break;
                 case 0xD:
                     Draw(instruction);
                     break;
@@ -243,16 +246,19 @@ namespace Chip8
                     break;
                 case 0x1:
                     // 8XY1: Binary OR
+                    registers[0xF] = 0;
                     registers[vX] |= registers[vY];
                     if (DEBUG) Console.WriteLine($"v{vX:X} |= v{vY:X}");
                     break;
                 case 0x2:
                     // 8XY1: Binary AND
+                    registers[0xF] = 0;
                     registers[vX] &= registers[vY];
                     if (DEBUG) Console.WriteLine($"v{vX:X} &= v{vY:X}");
                     break;
                 case 0x3:
                     // 8XY3: Logical XOR
+                    registers[0xF] = 0;
                     registers[vX] ^= registers[vY];
                     if (DEBUG) Console.WriteLine($"v{vX:X} ^= v{vY:X}");
                     break;
@@ -304,6 +310,13 @@ namespace Chip8
             _index_register = NNN(instruction);
             if (DEBUG) Console.WriteLine($"set_i 0x{_index_register:X4}");
         }
+
+        private void JumpWithOffset(byte[] instruction)
+        {
+            // 2NNN - set PC to v0 + NNN
+            pc = (short)(registers[0] + NNN(instruction));
+            if (DEBUG) Console.WriteLine($"jump 0x{pc:X4}");
+        }        
 
         private void Draw(byte[] instruction)
         {
@@ -398,14 +411,14 @@ namespace Chip8
                     // store values from V0 - VX to memory[I] - memory[I + X]
                     for (int i = 0; i <= vX; i++)
                     {
-                        _memory.SetMemory((short)(_index_register + i), registers[i]);
+                        _memory.SetMemory(_index_register++, registers[i]);
                     }
                     break;
                 case 0x65:
                     // load values from memory[I] - memory[I + X] to V0 - VX 
                     for (int i = 0; i <= vX; i++)
                     {
-                        registers[i] = _memory.ReadMemory((short)(_index_register + i), 1)[0];
+                        registers[i] = _memory.ReadMemory(_index_register++, 1)[0];
                     }
                     break;
                 case 0x0A:

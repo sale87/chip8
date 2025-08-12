@@ -2,7 +2,7 @@ class Timer
 {
     public static System.Timers.Timer MakeTimer(Action action)
     {
-        System.Timers.Timer _cpuTimer = new(1000.0 / 700); // ~ 700 times per second      
+        System.Timers.Timer _cpuTimer = new(1000.0 / 900); // ~ 800 times per second      
         _cpuTimer.Elapsed += (source, e) =>
         {
             try
