@@ -15,14 +15,12 @@ namespace Chip8.components
         private readonly byte[] GRID_COLOR = [20, 20, 20, 255];
 
         private bool[,] displayGrid = new bool[Display.WIDTH, Display.HEIGHT];
-        private bool hasChanges = false;
 
         private nint renderer = 0;
         private nint window = 0;
 
         public void InitGrid()
         {
-            hasChanges = true;
             displayGrid = new bool[Display.WIDTH, Display.HEIGHT];
         }
 
@@ -33,7 +31,6 @@ namespace Chip8.components
 
         public void SetPixel(int x, int y, bool v)
         {
-            hasChanges = true;
             displayGrid[x, y] = v;
         }
 

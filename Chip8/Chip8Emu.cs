@@ -142,22 +142,22 @@ namespace Chip8
         private void ClearScreen()
         {
             // 00E0 - clear screen
-            if (DEBUG) Console.WriteLine("cls");
             _display.InitGrid();
+            Debug("cls");
         }
 
         private void Return(byte[] instruction)
         {
             // 00EE - return from subroutine
             pc = _stack.Pop();
-            if (DEBUG) Console.WriteLine($"return 0x{pc:X4}");
+            Debug($"return 0x{pc:X4}");
         }
 
         private void Jump(byte[] instruction)
         {
             // 1NNN - set PC to NNN
             pc = (short)NNN(instruction);
-            if (DEBUG) Console.WriteLine($"jump 0x{pc:X4}");
+            Debug($"jump 0x{pc:X4}");
         }
 
         private void Call(byte[] instruction)
@@ -165,7 +165,7 @@ namespace Chip8
             // 2NNN - Call routine at NNN
             _stack.Push(pc);
             pc = (short)NNN(instruction);
-            if (DEBUG) Console.WriteLine($"call 0x{pc:X4}");
+            Debug($"call 0x{pc:X4}");
         }
 
         private void SkipIfVXeqN(byte[] instruction)
@@ -176,7 +176,7 @@ namespace Chip8
             {
                 pc += 2;
             }
-            if (DEBUG) Console.WriteLine($"skip_if v{vX:X} == 0x{instruction[1]:X2}");
+            Debug($"skip_if v{vX:X} == 0x{instruction[1]:X2}");
         }
 
         private void SkipIfVXneqN(byte[] instruction)
@@ -187,7 +187,7 @@ namespace Chip8
             {
                 pc += 2;
             }
-            if (DEBUG) Console.WriteLine($"skip_if v{vX:X} != 0x{instruction[1]:X2}");
+            Debug($"skip_if v{vX:X} != 0x{instruction[1]:X2}");
         }
 
         private void SkipIfVXeqVY(byte[] instruction)
@@ -199,7 +199,7 @@ namespace Chip8
             {
                 pc += 2;
             }
-            if (DEBUG) Console.WriteLine($"skip_if v{vX:X} == v{vY:X}");
+            Debug($"skip_if v{vX:X} == v{vY:X}");
         }
 
         private void SkipIfVXneqVY(byte[] instruction)
@@ -211,7 +211,7 @@ namespace Chip8
             {
                 pc += 2;
             }
-            if (DEBUG) Console.WriteLine($"skip_if v{vX:X} != v{vY:X}");
+            Debug($"skip_if v{vX:X} != v{vY:X}");
         }
 
         private void SetRegister(byte[] instruction)
@@ -219,7 +219,7 @@ namespace Chip8
             // 6XNN - set the register VX to the value NN
             int vX = SecondNibble(instruction[0]);
             registers[vX] = instruction[1];
-            if (DEBUG) Console.WriteLine($"set v{vX:X} 0x{instruction[1]:X2}");
+            Debug($"set v{vX:X} 0x{instruction[1]:X2}");
         }
 
         private void Add(byte[] instruction)
@@ -227,7 +227,7 @@ namespace Chip8
             // 7XNN - add the value NN to VX
             int vX = SecondNibble(instruction[0]);
             registers[vX] += instruction[1];
-            if (DEBUG) Console.WriteLine($"add v{vX:X} 0x{instruction[1]:X2}");
+            Debug($"add v{vX:X} 0x{instruction[1]:X2}");
         }
 
         private void LogicOrArithmeticInstruction(byte[] instruction)
@@ -242,25 +242,25 @@ namespace Chip8
                 case 0x0:
                     // 8XY0: Set vX to vY
                     registers[vX] = registers[vY];
-                    if (DEBUG) Console.WriteLine($"v{vX:X} = v{vY:X}");
+                    Debug($"v{vX:X} = v{vY:X}");
                     break;
                 case 0x1:
                     // 8XY1: Binary OR
                     registers[vX] |= registers[vY];
                     registers[0xF] = 0;
-                    if (DEBUG) Console.WriteLine($"v{vX:X} |= v{vY:X}");
+                    Debug($"v{vX:X} |= v{vY:X}");
                     break;
                 case 0x2:
                     // 8XY1: Binary AND
                     registers[vX] &= registers[vY];
                     registers[0xF] = 0;
-                    if (DEBUG) Console.WriteLine($"v{vX:X} &= v{vY:X}");
+                    Debug($"v{vX:X} &= v{vY:X}");
                     break;
                 case 0x3:
                     // 8XY3: Logical XOR
                     registers[vX] ^= registers[vY];
                     registers[0xF] = 0;
-                    if (DEBUG) Console.WriteLine($"v{vX:X} ^= v{vY:X}");
+                    Debug($"v{vX:X} ^= v{vY:X}");
                     break;
                 case 0x4:
                     // 8XY4: Add vY to vX and set to vX
@@ -268,7 +268,7 @@ namespace Chip8
                     registers[vX] += registers[vY];
                     // in case of overflow set vF to 1
                     registers[0xF] = (byte)((pre8XY4 > registers[vX]) ? 1 : 0);
-                    if (DEBUG) Console.WriteLine($"v{vX:X} += v{vY:X}");
+                    Debug($"v{vX:X} += v{vY:X}");
                     break;
                 case 0x5:
                     // 8XY5: Subtract vY from vX and set to vX
@@ -276,47 +276,45 @@ namespace Chip8
                     registers[vX] -= registers[vY];
                     // in case of underflow set vF to 1
                     registers[0xF] = (byte)((pre8XY5 < registers[vX]) ? 0 : 1);
-                    if (DEBUG) Console.WriteLine($"v{vX:X} = v{vX:X} - v{vY:X}");
+                    Debug($"v{vX:X} = v{vX:X} - v{vY:X}");
                     break;
                 case 0x6:
                     // 8XY6: Shift vX to the right
                     byte pre8XY6 = registers[vX];
                     registers[vX] >>= 1;
                     registers[0xF] = (byte)(pre8XY6 & 0b1);
-                    if (DEBUG) Console.WriteLine($"v{vX:X} >>= 1");
+                    Debug($"v{vX:X} >>= 1");
                     break;
                 case 0x7:
                     // 8XY7: Subtract vX from vY and set to vX
                     byte pre8XY7 = registers[vX];
                     registers[vX] = (byte)(registers[vY] - registers[vX]);
                     registers[0xF] = (byte)((pre8XY7 > registers[vY]) ? 0 : 1);
-                    if (DEBUG) Console.WriteLine($"v{vX:X} = v{vY:X} - v{vX:X}");
+                    Debug($"v{vX:X} = v{vY:X} - v{vX:X}");
                     break;
                 case 0xE:
                     // 8XYE: Shift vX to the left
                     byte pre8XYE = registers[vX];
                     registers[vX] <<= 1;
                     registers[0xF] = (byte)((pre8XYE & 0b10000000) >> 7);
-                    if (DEBUG) Console.WriteLine($"v{vX:X} <<= 1");
+                    Debug($"v{vX:X} <<= 1");
                     break;
             }
-
-            if (DEBUG) Console.WriteLine($"set_i 0x{_index_register:X4}");
         }
 
         private void SetIndexRegister(byte[] instruction)
         {
             // ANNN - set the index register I to the value NNN
             _index_register = NNN(instruction);
-            if (DEBUG) Console.WriteLine($"set_i 0x{_index_register:X4}");
+            Debug($"set_i 0x{_index_register:X4}");
         }
 
         private void JumpWithOffset(byte[] instruction)
         {
             // 2NNN - set PC to v0 + NNN
             pc = (short)(registers[0] + NNN(instruction));
-            if (DEBUG) Console.WriteLine($"jump 0x{pc:X4}");
-        }        
+            Debug($"jump 0x{pc:X4}");
+        }
 
         private void Draw(byte[] instruction)
         {
@@ -328,8 +326,6 @@ namespace Chip8
             int n = SecondNibble(instruction[1]);
             int x = registers[vX] % Display.WIDTH;
             int y = registers[vY] % Display.HEIGHT;
-
-            if (DEBUG) Console.WriteLine($"draw v{vX:X}, v{vY:X}, {n}");
 
             byte[] sprite = _memory.ReadMemory((short)_index_register, (short)n);
             registers[0xf] = 0;
@@ -362,24 +358,28 @@ namespace Chip8
                     }
                 }
             }
+
+            Debug($"draw v{vX:X}, v{vY:X}, {n}");
         }
 
         private void EInstruction(byte[] instruction)
         {
             int vX = SecondNibble(instruction[0]);
             switch (instruction[1])
-            {                
+            {
                 case 0xA1:
                     if (!_keyboard.IsKeyPressed(registers[vX]))
                     {
                         pc += 2;
                     }
+                    Debug($"is_not_key_pressed v{vX:X}");
                     break;
                 case 0x9E:
                     if (_keyboard.IsKeyPressed(registers[vX]))
                     {
                         pc += 2;
                     }
+                    Debug($"is_key_pressed v{vX:X}");
                     break;
                 default:
                     throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
@@ -393,9 +393,11 @@ namespace Chip8
             {
                 case 0x07:
                     registers[vX] = _delayTimer.GetValue();
+                    Debug($"set v{vX:X} delay_timer");
                     break;
                 case 0x15:
                     _delayTimer.SetValue(registers[vX]);
+                    Debug($"set delay_timer v{vX:X}");
                     break;
                 case 0x33:
                     // convert vX to decimal MNP and then
@@ -406,6 +408,7 @@ namespace Chip8
                     _memory.SetMemory((short)(_index_register + 1), (byte)(val % 10));
                     val /= 10;
                     _memory.SetMemory((short)_index_register, (byte)(val % 10));
+                    Debug($"convert_to_decimal v{vX:X}");
                     break;
                 case 0x55:
                     // store values from V0 - VX to memory[I] - memory[I + X]
@@ -413,6 +416,7 @@ namespace Chip8
                     {
                         _memory.SetMemory(_index_register++, registers[i]);
                     }
+                    Debug($"store_to_memory v0 v{vX:X}");
                     break;
                 case 0x65:
                     // load values from memory[I] - memory[I + X] to V0 - VX 
@@ -420,6 +424,7 @@ namespace Chip8
                     {
                         registers[i] = _memory.ReadMemory(_index_register++, 1)[0];
                     }
+                    Debug($"load_from_memory v0 v{vX:X}");
                     break;
                 case 0x0A:
                     // wait for keypress
@@ -433,10 +438,12 @@ namespace Chip8
                     {
                         Thread.Sleep(1000 / 700);
                     }
+                    Debug($"key_press v{vX:X}");
                     break;
                 case 0x1E:
                     // add value from vX to I
                     _index_register += registers[vX];
+                    Debug($"add index_register v{vX:X}");
                     break;
                 default:
                     throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
@@ -463,5 +470,12 @@ namespace Chip8
             return Convert.ToHexString(arr);
         }
 
+        private void Debug(string message)
+        {
+            if (!DEBUG)
+                return;
+
+            Console.Out.WriteLine($"{DateTime.Now.ToString("HH:mm:ss.ffffff")} {message}");
+        }
     }
 }
