@@ -226,11 +226,6 @@ namespace Chip8
             int vY = FirstNibble(instruction[1]);
             int i = SecondNibble(instruction[1]);
 
-            if (vX == 0 && vY == 6)
-            {
-                Console.Out.WriteLine();
-            }
-
             switch (i)
             {
                 case 0x0:
