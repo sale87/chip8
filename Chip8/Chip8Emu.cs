@@ -264,19 +264,19 @@ namespace Chip8
                     registers[0xF] = (byte)((pre8XY5 < registers[vX]) ? 0 : 1);
                     if (DEBUG) Console.WriteLine($"v{vX:X} = v{vX:X} - v{vY:X}");
                     break;
-                case 0x7:
-                    // 8XY7: Subtract vX from vY and set to vX
-                    byte pre8XY7 = registers[vX];
-                    registers[vX] = (byte)(registers[vY] - registers[vX]);
-                    registers[0xF] = (byte)((pre8XY7 > registers[vY]) ? 0 : 1);
-                    if (DEBUG) Console.WriteLine($"v{vX:X} = v{vY:X} - v{vX:X}");
-                    break;
                 case 0x6:
                     // 8XY6: Shift vX to the right
                     byte pre8XY6 = registers[vX];
                     registers[vX] >>= 1;
                     registers[0xF] = (byte)(pre8XY6 & 0b1);
                     if (DEBUG) Console.WriteLine($"v{vX:X} >>= 1");
+                    break;
+                case 0x7:
+                    // 8XY7: Subtract vX from vY and set to vX
+                    byte pre8XY7 = registers[vX];
+                    registers[vX] = (byte)(registers[vY] - registers[vX]);
+                    registers[0xF] = (byte)((pre8XY7 > registers[vY]) ? 0 : 1);
+                    if (DEBUG) Console.WriteLine($"v{vX:X} = v{vY:X} - v{vX:X}");
                     break;
                 case 0xE:
                     // 8XYE: Shift vX to the left
@@ -287,7 +287,6 @@ namespace Chip8
                     break;
             }
 
-            _index_register = NNN(instruction);
             if (DEBUG) Console.WriteLine($"set_i 0x{_index_register:X4}");
         }
 
