@@ -4,8 +4,8 @@ namespace Chip8.components
 {
     public class DelayTimer
     {
-        private byte _delayTimer = 255;
-        private System.Timers.Timer _dTimer;
+        private byte _delayTimer = 0;
+        private readonly System.Timers.Timer _dTimer;
 
         public DelayTimer()
         {
@@ -32,7 +32,7 @@ namespace Chip8.components
             }
         }
 
-        private void OnTimedEvent(Object? source, ElapsedEventArgs e)
+        private void OnTimedEvent(object? source, ElapsedEventArgs e)
         {
             lock (this)
             {

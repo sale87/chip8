@@ -3,35 +3,34 @@ using SDL3;
 
 namespace Chip8.util
 {
-    class MainLoop
+    static class MainLoop
     {
         // SDL things
-        private static bool loop = true;
-        private static readonly uint FPS = 700;
-        private static readonly uint FRAME_TARGET_TIME = 1000 / FPS;
-        private static ulong lastFameTime = 0;
+        public static bool Loop = true;
+        private const uint FrameTargetTime = 1000 / 60;
+        private static ulong _lastFameTime;
 
-        public static void Run(Display _display, Keyboard _keyboard)
+        public static void Run(Display display, Keyboard keyboard)
         {
             // main SDL loop
-            while (loop)
+            while (Loop)
             {
                 Wait();
-                ProcessInput(_keyboard);
-                _display.Draw();
+                ProcessInput(keyboard);
+                display.Draw();
             }
         }
-
-        private static double Wait()
+        
+        private static void Wait()
         {
-            uint timeToWait = FRAME_TARGET_TIME - (uint)(SDL.GetTicks() - lastFameTime);
-            if (timeToWait > 0 && timeToWait <= FRAME_TARGET_TIME)
+            uint timeToWait = FrameTargetTime - (uint)(SDL.GetTicks() - _lastFameTime);
+            if (timeToWait > 0 && timeToWait <= FrameTargetTime)
             {
                 SDL.Delay(timeToWait);
             }
-            double deltaTime = (SDL.GetTicks() - lastFameTime) / 1000.0;
-            lastFameTime = SDL.GetTicks();
-            return deltaTime;
+
+            // double deltaTime = (SDL.GetTicks() - _lastFameTime) / 1000.0;
+            _lastFameTime = SDL.GetTicks();
         }
 
         private static void ProcessInput(Keyboard keyboard)
@@ -41,7 +40,7 @@ namespace Chip8.util
                 SDL.EventType type = (SDL.EventType)e.Type;
                 if (type == SDL.EventType.Quit)
                 {
-                    loop = false;
+                    Loop = false;
                 }
 
                 if (type == SDL.EventType.KeyDown || type == SDL.EventType.KeyUp)
@@ -50,7 +49,7 @@ namespace Chip8.util
                     switch (key)
                     {
                         case SDL.Keycode.Escape:
-                            loop = false;
+                            Loop = false;
                             break;
                         case SDL.Keycode.Alpha1:
                             ProcessKey(keyboard, type, 0x1);

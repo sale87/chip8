@@ -19,8 +19,11 @@ namespace Chip8.components
         private nint renderer = 0;
         private nint window = 0;
 
+        private bool hasChanges = true;
+
         public void InitGrid()
         {
+            hasChanges = true;
             displayGrid = new bool[Display.WIDTH, Display.HEIGHT];
         }
 
@@ -31,11 +34,16 @@ namespace Chip8.components
 
         public void SetPixel(int x, int y, bool v)
         {
+            hasChanges = true;
             displayGrid[x, y] = v;
         }
 
         public void Draw()
         {
+            if (!hasChanges)
+            {
+                return;
+            }
             if (window == 0 || renderer == 0)
                 CreateWindow();
 
@@ -62,7 +70,7 @@ namespace Chip8.components
             }
 
             if (!SDL.CreateWindowAndRenderer(
-                "SDL3 Create Window",
+                "Chip8",
                 windowWidth,
                 windowHeight,
                 0,
