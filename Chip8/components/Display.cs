@@ -1,159 +1,156 @@
 ﻿using SDL3;
-namespace Chip8.components
+namespace Chip8.components;
+
+public class Display
 {
-    public class Display
+    public const int Width = 64;
+    public const int Height = 32;
+    private const int DisplayScale = 15;
+    private const int WindowWidth = Width * DisplayScale;
+    private const int WindowHeight = Height * DisplayScale;
+    private const int SinglePixel = DisplayScale;
+
+    private readonly byte[] _bgColor = [0, 0, 0, 255];
+    private readonly byte[] _fgColor = [150, 150, 150, 255];
+    private readonly byte[] _gridColor = [20, 20, 20, 255];
+
+    private bool[,] _displayGrid = new bool[Width, Height];
+
+    private nint _renderer;
+    private nint _window;
+
+    private bool _hasChanges = true;
+
+    public void InitGrid()
     {
-        public const int WIDTH = 64;
-        public const int HEIGHT = 32;
-        private const int displayScale = 15;
-        private const int windowWidth = WIDTH * displayScale;
-        private const int windowHeight = HEIGHT * displayScale;
-        private const int singlePixel = displayScale;
+        _hasChanges = true;
+        _displayGrid = new bool[Display.Width, Height];
+    }
 
-        private readonly byte[] BG_COLOR = [0, 0, 0, 255];
-        private readonly byte[] FG_COLOR = [150, 150, 150, 255];
-        private readonly byte[] GRID_COLOR = [20, 20, 20, 255];
+    public bool GetPixel(int x, int y)
+    {
+        return _displayGrid[x, y];
+    }
 
-        private bool[,] displayGrid = new bool[Display.WIDTH, Display.HEIGHT];
+    public void SetPixel(int x, int y, bool v)
+    {
+        _hasChanges = true;
+        _displayGrid[x, y] = v;
+    }
 
-        private nint renderer = 0;
-        private nint window = 0;
-
-        private bool hasChanges = true;
-
-        public void InitGrid()
+    public void Draw()
+    {
+        if (!_hasChanges)
         {
-            hasChanges = true;
-            displayGrid = new bool[Display.WIDTH, Display.HEIGHT];
+            return;
+        }
+        if (_window == 0 || _renderer == 0)
+            CreateWindow();
+
+        DrawBackground(_renderer);
+        DrawGrid(_renderer);
+        DrawPixels(_renderer);
+
+        SDL.RenderPresent(_renderer);
+    }
+
+    public void Close()
+    {
+        SDL.DestroyRenderer(_renderer);
+        SDL.DestroyWindow(_window);
+        SDL.Quit();
+    }
+
+    private void CreateWindow()
+    {
+        if (!SDL.Init(SDL.InitFlags.Video))
+        {
+            SDL.LogError(SDL.LogCategory.System, $"SDL could not initialize: {SDL.GetError()}");
+            throw new Exception("Failed to initialize SDL.");
         }
 
-        public bool GetPixel(int x, int y)
-        {
-            return displayGrid[x, y];
-        }
-
-        public void SetPixel(int x, int y, bool v)
-        {
-            hasChanges = true;
-            displayGrid[x, y] = v;
-        }
-
-        public void Draw()
-        {
-            if (!hasChanges)
-            {
-                return;
-            }
-            if (window == 0 || renderer == 0)
-                CreateWindow();
-
-            DrawBackground(renderer);
-            DrawGrid(renderer);
-            DrawPixels(renderer);
-
-            SDL.RenderPresent(renderer);
-        }
-
-        public void Close()
-        {
-            SDL.DestroyRenderer(renderer);
-            SDL.DestroyWindow(window);
-            SDL.Quit();
-        }
-
-        private void CreateWindow()
-        {
-            if (!SDL.Init(SDL.InitFlags.Video))
-            {
-                SDL.LogError(SDL.LogCategory.System, $"SDL could not initialize: {SDL.GetError()}");
-                throw new Exception("Failed to initialize SDL.");
-            }
-
-            if (!SDL.CreateWindowAndRenderer(
+        if (SDL.CreateWindowAndRenderer(
                 "Chip8",
-                windowWidth,
-                windowHeight,
+                WindowWidth,
+                WindowHeight,
                 0,
-                out window,
-                out renderer))
-            {
-                SDL.LogError(SDL.LogCategory.Application, $"Error creating window and rendering: {SDL.GetError()}");
-                throw new Exception("Failed to create new Window.");
-            }
-        }
+                out _window,
+                out _renderer)) return;
+        SDL.LogError(SDL.LogCategory.Application, $"Error creating window and rendering: {SDL.GetError()}");
+        throw new Exception("Failed to create new Window.");
+    }
 
-        private void DrawPixels(nint renderer)
+    private void DrawPixels(nint renderer)
+    {
+        for (var x = 0; x < Width; x++)
         {
-            for (int x = 0; x < WIDTH; x++)
+            for (var y = 0; y < Height; y++)
             {
-                for (int y = 0; y < HEIGHT; y++)
+                if (_displayGrid[x, y])
                 {
-                    if (displayGrid[x, y])
-                    {
-                        DrawPixel(
-                            renderer, x, y,
-                            (x - 1 > 0) && displayGrid[x - 1, y],
-                            (x + 1 < WIDTH) && displayGrid[x + 1, y],
-                            (y - 1 > 0) && displayGrid[x, y - 1],
-                            (y + 1 < HEIGHT) && displayGrid[x, y + 1]
-                        );
-                    }
+                    DrawPixel(
+                        renderer, x, y,
+                        x - 1 > 0 && _displayGrid[x - 1, y],
+                        x + 1 < Width && _displayGrid[x + 1, y],
+                        y - 1 > 0 && _displayGrid[x, y - 1],
+                        y + 1 < Height && _displayGrid[x, y + 1]
+                    );
                 }
             }
         }
+    }
 
-        private void DrawPixel(
-            nint renderer, int x, int y, bool borderLeft, bool borderRight, bool borderTop, bool borderBottom
-            )
+    private void DrawPixel(
+        nint renderer, int x, int y, bool borderLeft, bool borderRight, bool borderTop, bool borderBottom
+    )
+    {
+        SDL.SetRenderDrawColor(renderer, _fgColor[0], _fgColor[1], _fgColor[2], _fgColor[3]);
+        SDL.FRect rect = new()
         {
-            SDL.SetRenderDrawColor(renderer, FG_COLOR[0], FG_COLOR[1], FG_COLOR[2], FG_COLOR[3]);
-            SDL.FRect rect = new()
-            {
-                X = x * displayScale,
-                Y = y * displayScale,
-                W = singlePixel,
-                H = singlePixel
-            };
-            SDL.RenderFillRect(renderer, rect);
+            X = x * DisplayScale,
+            Y = y * DisplayScale,
+            W = SinglePixel,
+            H = SinglePixel
+        };
+        SDL.RenderFillRect(renderer, rect);
 
-            SDL.SetRenderDrawColor(renderer, GRID_COLOR[0], GRID_COLOR[1], GRID_COLOR[2], GRID_COLOR[3]);
-            if (borderLeft)
-            {
-                SDL.RenderLine(renderer, rect.X, rect.Y, rect.X, rect.Y + singlePixel);
-            }
-            if (borderRight)
-            {
-                SDL.RenderLine(renderer, rect.X + singlePixel, rect.Y, rect.X + singlePixel, rect.Y + singlePixel);
-            }
-            if (borderTop)
-            {
-                SDL.RenderLine(renderer, rect.X, rect.Y, rect.X + singlePixel, rect.Y);
-            }
-            if (borderBottom)
-            {
-                SDL.RenderLine(renderer, rect.X, rect.Y + singlePixel, rect.X + singlePixel, rect.Y + singlePixel);
-            }
-
+        SDL.SetRenderDrawColor(renderer, _gridColor[0], _gridColor[1], _gridColor[2], _gridColor[3]);
+        if (borderLeft)
+        {
+            SDL.RenderLine(renderer, rect.X, rect.Y, rect.X, rect.Y + SinglePixel);
         }
-
-        private void DrawGrid(nint renderer)
+        if (borderRight)
         {
-            SDL.SetRenderDrawColor(renderer, GRID_COLOR[0], GRID_COLOR[1], GRID_COLOR[2], GRID_COLOR[3]);
-            for (int x = 0; x < WIDTH; x++)
-            {
-                SDL.RenderLine(renderer, x * displayScale, 0, x * displayScale, windowHeight);
-            }
-            for (int x = 0; x < HEIGHT; x++)
-            {
-                SDL.RenderLine(renderer, 0, x * displayScale, windowWidth, x * displayScale);
-            }
+            SDL.RenderLine(renderer, rect.X + SinglePixel, rect.Y, rect.X + SinglePixel, rect.Y + SinglePixel);
         }
-
-        private void DrawBackground(nint renderer)
+        if (borderTop)
         {
-            SDL.SetRenderDrawColor(renderer, BG_COLOR[0], BG_COLOR[1], BG_COLOR[2], BG_COLOR[3]);
-            SDL.RenderClear(renderer);
+            SDL.RenderLine(renderer, rect.X, rect.Y, rect.X + SinglePixel, rect.Y);
+        }
+        if (borderBottom)
+        {
+            SDL.RenderLine(renderer, rect.X, rect.Y + SinglePixel, rect.X + SinglePixel, rect.Y + SinglePixel);
         }
 
     }
+
+    private void DrawGrid(nint renderer)
+    {
+        SDL.SetRenderDrawColor(renderer, _gridColor[0], _gridColor[1], _gridColor[2], _gridColor[3]);
+        for (var x = 0; x < Width; x++)
+        {
+            SDL.RenderLine(renderer, x * DisplayScale, 0, x * DisplayScale, WindowHeight);
+        }
+        for (var x = 0; x < Height; x++)
+        {
+            SDL.RenderLine(renderer, 0, x * DisplayScale, WindowWidth, x * DisplayScale);
+        }
+    }
+
+    private void DrawBackground(nint renderer)
+    {
+        SDL.SetRenderDrawColor(renderer, _bgColor[0], _bgColor[1], _bgColor[2], _bgColor[3]);
+        SDL.RenderClear(renderer);
+    }
+
 }

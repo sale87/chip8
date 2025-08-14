@@ -4,7 +4,7 @@ namespace Chip8.components
 {
     public class DelayTimer
     {
-        private byte _delayTimer = 0;
+        private byte _delayTimer;
         private readonly System.Timers.Timer _dTimer;
 
         public DelayTimer()

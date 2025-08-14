@@ -123,10 +123,11 @@ namespace Chip8
 
         private static void PrintDebugRaw(byte[] instruction)
         {
-            if (DebugRaw)
-            {
-                Console.Out.WriteLine($"----\n{HexStr(instruction)}");
-            }
+            if (!DebugRaw) return;
+            // ReSharper disable once HeuristicUnreachableCode
+#pragma warning disable CS0162 // Unreachable code detected
+            Console.Out.WriteLine($"----\n{HexStr(instruction)}");
+#pragma warning restore CS0162 // Unreachable code detected
         }
 
         private void SystemInstruction(byte[] instruction)
@@ -140,7 +141,7 @@ namespace Chip8
                     Return();
                     break;
                 default:
-                    throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
+                    throw new Exception($"Unknown instruction: {Convert.ToHexString(instruction)}");
             }
         }
 
@@ -187,7 +188,7 @@ namespace Chip8
         private void SkipIfVXneqN(byte[] instruction)
         {
             // 4XNN - if vX != NN, skip next instruction
-            int vX = SecondNibble(instruction[0]);
+            var vX = SecondNibble(instruction[0]);
             if (_registers[vX] != instruction[1])
             {
                 _pc += 2;
@@ -198,8 +199,8 @@ namespace Chip8
         private void SkipIfVXeqVy(byte[] instruction)
         {
             // 5XY0 - if VX == VY, skip next instruction
-            int vX = SecondNibble(instruction[0]);
-            int vY = FirstNibble(instruction[1]);
+            var vX = SecondNibble(instruction[0]);
+            var vY = FirstNibble(instruction[1]);
             if (_registers[vX] == _registers[vY])
             {
                 _pc += 2;
@@ -210,8 +211,8 @@ namespace Chip8
         private void SkipIfVXneqVy(byte[] instruction)
         {
             // 9XY0 - if VX != VY, skip next instruction
-            int vX = SecondNibble(instruction[0]);
-            int vY = FirstNibble(instruction[1]);
+            var vX = SecondNibble(instruction[0]);
+            var vY = FirstNibble(instruction[1]);
             if (_registers[vX] != _registers[vY])
             {
                 _pc += 2;
@@ -222,7 +223,7 @@ namespace Chip8
         private void SetRegister(byte[] instruction)
         {
             // 6XNN - set the register VX to the value NN
-            int vX = SecondNibble(instruction[0]);
+            var vX = SecondNibble(instruction[0]);
             _registers[vX] = instruction[1];
             Debug($"set v{vX:X} 0x{instruction[1]:X2}");
         }
@@ -230,7 +231,7 @@ namespace Chip8
         private void Add(byte[] instruction)
         {
             // 7XNN - add the value NN to VX
-            int vX = SecondNibble(instruction[0]);
+            var vX = SecondNibble(instruction[0]);
             _registers[vX] += instruction[1];
             Debug($"add v{vX:X} 0x{instruction[1]:X2}");
         }
@@ -238,9 +239,9 @@ namespace Chip8
         private void LogicOrArithmeticInstruction(byte[] instruction)
         {
             // 8XYI - Logic or arithmetic instruction involving vX and vY registers
-            int vX = SecondNibble(instruction[0]);
-            int vY = FirstNibble(instruction[1]);
-            int i = SecondNibble(instruction[1]);
+            var vX = SecondNibble(instruction[0]);
+            var vY = FirstNibble(instruction[1]);
+            var i = SecondNibble(instruction[1]);
 
             switch (i)
             {
@@ -269,39 +270,39 @@ namespace Chip8
                     break;
                 case 0x4:
                     // 8XY4: Add vY to vX and set to vX
-                    byte pre8XY4 = _registers[vX];
+                    var pre8Xy4 = _registers[vX];
                     _registers[vX] += _registers[vY];
                     // in case of overflow set vF to 1
-                    _registers[0xF] = (byte)(pre8XY4 > _registers[vX] ? 1 : 0);
+                    _registers[0xF] = (byte)(pre8Xy4 > _registers[vX] ? 1 : 0);
                     Debug($"v{vX:X} += v{vY:X}");
                     break;
                 case 0x5:
                     // 8XY5: Subtract vY from vX and set to vX
-                    byte pre8XY5 = _registers[vX];
+                    var pre8Xy5 = _registers[vX];
                     _registers[vX] -= _registers[vY];
                     // in case of underflow set vF to 1
-                    _registers[0xF] = (byte)((pre8XY5 < _registers[vX]) ? 0 : 1);
+                    _registers[0xF] = (byte)((pre8Xy5 < _registers[vX]) ? 0 : 1);
                     Debug($"v{vX:X} = v{vX:X} - v{vY:X}");
                     break;
                 case 0x6:
                     // 8XY6: Shift vX to the right
-                    byte pre8XY6 = _registers[vX];
+                    var pre8Xy6 = _registers[vX];
                     _registers[vX] >>= 1;
-                    _registers[0xF] = (byte)(pre8XY6 & 0b1);
+                    _registers[0xF] = (byte)(pre8Xy6 & 0b1);
                     Debug($"v{vX:X} >>= 1");
                     break;
                 case 0x7:
                     // 8XY7: Subtract vX from vY and set to vX
-                    byte pre8XY7 = _registers[vX];
+                    var pre8Xy7 = _registers[vX];
                     _registers[vX] = (byte)(_registers[vY] - _registers[vX]);
-                    _registers[0xF] = (byte)((pre8XY7 > _registers[vY]) ? 0 : 1);
+                    _registers[0xF] = (byte)((pre8Xy7 > _registers[vY]) ? 0 : 1);
                     Debug($"v{vX:X} = v{vY:X} - v{vX:X}");
                     break;
                 case 0xE:
                     // 8XYE: Shift vX to the left
-                    byte pre8XYE = _registers[vX];
+                    var pre8Xye = _registers[vX];
                     _registers[vX] <<= 1;
-                    _registers[0xF] = (byte)((pre8XYE & 0b10000000) >> 7);
+                    _registers[0xF] = (byte)((pre8Xye & 0b10000000) >> 7);
                     Debug($"v{vX:X} <<= 1");
                     break;
             }
@@ -324,34 +325,34 @@ namespace Chip8
         private void Draw(byte[] instruction)
         {
             // DXYN - draw an N pixels tall sprite 
-            // from the memory location that the I index register is holding to the screen, 
+            // from the memory location that I index register is holding to the screen, 
             // at the horizontal X coordinate in VX and the Y coordinate in VY
-            int vX = SecondNibble(instruction[0]);
-            int vY = FirstNibble(instruction[1]);
-            int n = SecondNibble(instruction[1]);
-            int x = _registers[vX] % Display.WIDTH;
-            int y = _registers[vY] % Display.HEIGHT;
+            var vX = SecondNibble(instruction[0]);
+            var vY = FirstNibble(instruction[1]);
+            var n = SecondNibble(instruction[1]);
+            var x = _registers[vX] % Display.Width;
+            var y = _registers[vY] % Display.Height;
 
-            byte[] sprite = _memory.ReadMemory((short)_indexRegister, (short)n);
+            var sprite = _memory.ReadMemory(_indexRegister, (short)n);
             _registers[0xf] = 0;
 
-            for (int yi = 0; yi < n; yi++)
+            for (var yi = 0; yi < n; yi++)
             {
-                int effectiveY = y + yi;
-                if (effectiveY >= Display.HEIGHT)
+                var effectiveY = y + yi;
+                if (effectiveY >= Display.Height)
                 {
                     break;
                 }
-                for (int xi = 0; xi < 8; xi++)
+                for (var xi = 0; xi < 8; xi++)
                 {
-                    byte mask = (byte)(0b10000000 >> xi);
-                    int effectiveX = x + xi;
-                    if (effectiveX >= Display.WIDTH)
+                    var mask = (byte)(0b10000000 >> xi);
+                    var effectiveX = x + xi;
+                    if (effectiveX >= Display.Width)
                     {
                         break;
                     }
                     var pixelOn = (sprite[yi] & mask) != 0;
-                    bool previousValue = _display.GetPixel(effectiveX, effectiveY);
+                    var previousValue = _display.GetPixel(effectiveX, effectiveY);
                     if (previousValue && pixelOn)
                     {
                         _registers[0xf] = 1;
@@ -372,7 +373,7 @@ namespace Chip8
 
         private void EInstruction(byte[] instruction)
         {
-            int vX = SecondNibble(instruction[0]);
+            var vX = SecondNibble(instruction[0]);
             switch (instruction[1])
             {
                 case 0xA1:
@@ -390,13 +391,13 @@ namespace Chip8
                     Debug($"is_key_pressed v{vX:X}");
                     break;
                 default:
-                    throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
+                    throw new Exception($"Unknown instruction: {Convert.ToHexString(instruction)}");
             }
         }
 
         private void FInstruction(byte[] instruction)
         {
-            int vX = SecondNibble(instruction[0]);
+            var vX = SecondNibble(instruction[0]);
             switch (instruction[1])
             {
                 case 0x07:
@@ -410,17 +411,17 @@ namespace Chip8
                 case 0x33:
                     // convert vX to decimal MNP and then
                     // store M in memory[I], N in memory[I + 1], and P in memory[I + 2]
-                    byte val = _registers[vX];
+                    var val = _registers[vX];
                     _memory.SetMemory((short)(_indexRegister + 2), (byte)(val % 10));
                     val /= 10;
                     _memory.SetMemory((short)(_indexRegister + 1), (byte)(val % 10));
                     val /= 10;
-                    _memory.SetMemory((short)_indexRegister, (byte)(val % 10));
+                    _memory.SetMemory(_indexRegister, (byte)(val % 10));
                     Debug($"convert_to_decimal v{vX:X}");
                     break;
                 case 0x55:
                     // store values from V0 - VX to memory[I] - memory[I + X]
-                    for (int i = 0; i <= vX; i++)
+                    for (var i = 0; i <= vX; i++)
                     {
                         _memory.SetMemory(_indexRegister++, _registers[i]);
                     }
@@ -428,7 +429,7 @@ namespace Chip8
                     break;
                 case 0x65:
                     // load values from memory[I] - memory[I + X] to V0 - VX 
-                    for (int i = 0; i <= vX; i++)
+                    for (var i = 0; i <= vX; i++)
                     {
                         _registers[i] = _memory.ReadMemory(_indexRegister++, 1)[0];
                     }
@@ -457,7 +458,7 @@ namespace Chip8
                     Debug($"add index_register v{vX:X}");
                     break;
                 default:
-                    throw new Exception($"Unkown instruction: {Convert.ToHexString(instruction)}");
+                    throw new Exception($"Unknown instruction: {Convert.ToHexString(instruction)}");
             }
         }
 
@@ -471,6 +472,7 @@ namespace Chip8
             return halfInstruction & 0b00001111;
         }
 
+        // ReSharper disable once InconsistentNaming
         private static short NNN(byte[] instruction)
         {
             return (short)((SecondNibble(instruction[0]) << 8) + instruction[1]);
@@ -481,12 +483,15 @@ namespace Chip8
             return Convert.ToHexString(arr);
         }
 
-        private void Debug(string message)
+        private static void Debug(string message)
         {
             if (!DebugInstructions)
                 return;
 
-            Console.Out.WriteLine($"{DateTime.Now.ToString("HH:mm:ss.ffffff")} {message}");
+            // ReSharper disable once HeuristicUnreachableCode
+#pragma warning disable CS0162 // Unreachable code detected
+            Console.Out.WriteLine($"{DateTime.Now:HH:mm:ss.ffffff} {message}");
+#pragma warning restore CS0162 // Unreachable code detected
         }
     }
 }

@@ -39,6 +39,7 @@ namespace Chip8.util
                 var sleepFor = TimeSpan.FromTicks(Math.Min(0, _stopwatch.ElapsedTicks - _last500Hz));
                 Thread.Sleep(sleepFor);
             }
+            // ReSharper disable once FunctionNeverReturns
         }
     }
 }

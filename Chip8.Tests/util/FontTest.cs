@@ -34,7 +34,7 @@ namespace Chip8.Tests.util
                 0xF0, 0x80, 0xF0, 0x80, 0x80  // F
             ];
             Font.Load(_memory);
-            byte[] bytes = _memory.ReadMemory(Font.FONT_START_ADDR, 80);
+            byte[] bytes = _memory.ReadMemory(Font.FontStartAddr, 80);
             Assert.Equal(font, bytes);
         }
 

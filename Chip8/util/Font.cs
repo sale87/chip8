@@ -2,11 +2,11 @@ using Chip8.components;
 
 namespace Chip8.util
 {
-    public class Font
+    public static class Font
     {
-        public const short FONT_START_ADDR = 0x50;
+        public const short FontStartAddr = 0x50;
 
-        private static readonly byte[] _font = [
+        private static readonly byte[] Fnt = [
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -27,7 +27,7 @@ namespace Chip8.util
 
         public static void Load(Memory memory)
         {
-            memory.SetMemory(FONT_START_ADDR, _font);
+            memory.SetMemory(FontStartAddr, Fnt);
         }
     }
 }
