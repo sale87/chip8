@@ -23,7 +23,6 @@ namespace Chip8
             LoadRom(path);
             _cpu.Start();
             MainLoop.Run(_display, _keyboard);
-            _display.Close();
         }
 
         private void LoadRom(string path)

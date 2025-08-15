@@ -1,118 +1,91 @@
 using Chip8.components;
-using SDL3;
+using Chip8.ui;
+using Raylib_cs;
+using rlImGui_cs;
 
 namespace Chip8.util
 {
-    static class MainLoop
+    internal static class MainLoop
     {
-        // SDL things
-        public static bool Loop = true;
-        private const uint FrameTargetTime = 1000 / 60;
-        private static ulong _lastFameTime;
+        // Initialize window
+        private const int ScreenWidth = 1280;
+        private const int ScreenHeight = 900;
+
+        private static DebugInterface _debugInterface = null!;
+
+        private static readonly Dictionary<byte, KeyboardKey> Keys = new Dictionary<byte, KeyboardKey>
+        {
+            { 0x1, KeyboardKey.One },
+            { 0x2, KeyboardKey.Two },
+            { 0x3, KeyboardKey.Three },
+            { 0xC, KeyboardKey.Four },
+            { 0x4, KeyboardKey.Q },
+            { 0x5, KeyboardKey.W },
+            { 0x6, KeyboardKey.E },
+            { 0xD, KeyboardKey.R },
+            { 0x7, KeyboardKey.A },
+            { 0x8, KeyboardKey.S },
+            { 0x9, KeyboardKey.D },
+            { 0xE, KeyboardKey.F },
+            { 0xA, KeyboardKey.Z },
+            { 0x0, KeyboardKey.X },
+            { 0xB, KeyboardKey.C },
+            { 0xF, KeyboardKey.V },
+        };
 
         public static void Run(Display display, Keyboard keyboard)
         {
-            // main SDL loop
-            while (Loop)
+            Raylib.InitWindow(ScreenWidth, ScreenHeight, "CHIP-8 Emulator - Raylib + ImGui");
+            Raylib.SetTargetFPS(60);
+
+            // Initialize ImGui
+            rlImGui.Setup();
+            Console.WriteLine("ImGui initialized successfully");
+            _debugInterface = new DebugInterface();
+
+            while (!Raylib.WindowShouldClose())
             {
-                Wait();
-                ProcessInput(keyboard);
+                // Update
+
+                // Draw
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(Color.DarkGray);
+
+                // Draw CHIP-8 display
                 display.Draw();
-            }
-        }
-        
-        private static void Wait()
-        {
-            uint timeToWait = FrameTargetTime - (uint)(SDL.GetTicks() - _lastFameTime);
-            if (timeToWait > 0 && timeToWait <= FrameTargetTime)
-            {
-                SDL.Delay(timeToWait);
+
+                // Begin ImGui frame
+                rlImGui.Begin();
+
+                // Draw ImGui interface
+                _debugInterface.Render(display);
+
+                // End ImGui frame
+                rlImGui.End();
+
+                ProcessInput(keyboard);
+
+                Raylib.EndDrawing();
             }
 
-            // double deltaTime = (SDL.GetTicks() - _lastFameTime) / 1000.0;
-            _lastFameTime = SDL.GetTicks();
+            // Cleanup
+            rlImGui.Shutdown();
+            Raylib.CloseWindow();
         }
 
         private static void ProcessInput(Keyboard keyboard)
         {
-            while (SDL.PollEvent(out var e))
+            foreach (var (chipKeyboardKey, key) in Keys)
             {
-                SDL.EventType type = (SDL.EventType)e.Type;
-                if (type == SDL.EventType.Quit)
+                if (Raylib.IsKeyDown(key))
                 {
-                    Loop = false;
+                    keyboard.KeyPressed(chipKeyboardKey);
                 }
 
-                if (type == SDL.EventType.KeyDown || type == SDL.EventType.KeyUp)
+                if (Raylib.IsKeyUp(key))
                 {
-                    SDL.Keycode key = e.Key.Key;
-                    switch (key)
-                    {
-                        case SDL.Keycode.Escape:
-                            Loop = false;
-                            break;
-                        case SDL.Keycode.Alpha1:
-                            ProcessKey(keyboard, type, 0x1);
-                            break;
-                        case SDL.Keycode.Alpha2:
-                            ProcessKey(keyboard, type, 0x2);
-                            break;
-                        case SDL.Keycode.Alpha3:
-                            ProcessKey(keyboard, type, 0x3);
-                            break;
-                        case SDL.Keycode.Alpha4:
-                            ProcessKey(keyboard, type, 0xC);
-                            break;
-                        case SDL.Keycode.Q:
-                            ProcessKey(keyboard, type, 0x4);
-                            break;
-                        case SDL.Keycode.W:
-                            ProcessKey(keyboard, type, 0x5);
-                            break;
-                        case SDL.Keycode.E:
-                            ProcessKey(keyboard, type, 0x6);
-                            break;
-                        case SDL.Keycode.R:
-                            ProcessKey(keyboard, type, 0xD);
-                            break;
-                        case SDL.Keycode.A:
-                            ProcessKey(keyboard, type, 0x7);
-                            break;
-                        case SDL.Keycode.S:
-                            ProcessKey(keyboard, type, 0x8);
-                            break;
-                        case SDL.Keycode.D:
-                            ProcessKey(keyboard, type, 0x9);
-                            break;
-                        case SDL.Keycode.F:
-                            ProcessKey(keyboard, type, 0xE);
-                            break;
-                        case SDL.Keycode.Z:
-                            ProcessKey(keyboard, type, 0xA);
-                            break;
-                        case SDL.Keycode.X:
-                            ProcessKey(keyboard, type, 0x0);
-                            break;
-                        case SDL.Keycode.C:
-                            ProcessKey(keyboard, type, 0xB);
-                            break;
-                        case SDL.Keycode.V:
-                            ProcessKey(keyboard, type, 0xF);
-                            break;
-                    }
+                    keyboard.KeyReleased(chipKeyboardKey);
                 }
-            }
-        }
-
-        private static void ProcessKey(Keyboard keyboard, SDL.EventType type, byte k)
-        {
-            if (type == SDL.EventType.KeyDown)
-            {
-                keyboard.KeyPressed(k);
-            }
-            else
-            {
-                keyboard.KeyReleased(k);
             }
         }
     }

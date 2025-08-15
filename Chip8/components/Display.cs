@@ -1,156 +1,107 @@
-﻿using SDL3;
+﻿using System.Numerics;
+using Raylib_cs;
+
 namespace Chip8.components;
 
 public class Display
 {
+    // CHIP-8 display constants
     public const int Width = 64;
     public const int Height = 32;
-    private const int DisplayScale = 15;
-    private const int WindowWidth = Width * DisplayScale;
-    private const int WindowHeight = Height * DisplayScale;
-    private const int SinglePixel = DisplayScale;
+    private const int DisplayScale = 10;
 
-    private readonly byte[] _bgColor = [0, 0, 0, 255];
-    private readonly byte[] _fgColor = [150, 150, 150, 255];
-    private readonly byte[] _gridColor = [20, 20, 20, 255];
+    public Vector3 PixelColor = new(0.58f, 0.58f, 0.58f);
+    public Vector3 BackgroundColor = new(0, 0, 0);
+    public Vector3 GridColor = new(0.19f, 0.19f, 0.19f);
 
-    private bool[,] _displayGrid = new bool[Width, Height];
-
-    private nint _renderer;
-    private nint _window;
+    public bool[,] DisplayGrid = new bool[Width, Height];
 
     private bool _hasChanges = true;
 
     public void InitGrid()
     {
         _hasChanges = true;
-        _displayGrid = new bool[Display.Width, Height];
+        DisplayGrid = new bool[Width, Height];
     }
 
     public bool GetPixel(int x, int y)
     {
-        return _displayGrid[x, y];
+        return DisplayGrid[x, y];
     }
 
     public void SetPixel(int x, int y, bool v)
     {
         _hasChanges = true;
-        _displayGrid[x, y] = v;
+        DisplayGrid[x, y] = v;
     }
 
     public void Draw()
     {
-        if (!_hasChanges)
+        if (!_hasChanges) return;
+
+        // Calculate display position (left side of screen)
+        const int displayPixelWidth = Width * DisplayScale;
+        const int displayPixelHeight = Height * DisplayScale;
+        var displayX = (Raylib.GetScreenWidth() - displayPixelWidth) / 2;
+        var displayY = (Raylib.GetScreenHeight() - displayPixelHeight) / 2;
+
+        // Draw border around display
+        Raylib.DrawRectangleLines(
+            displayX - 2,
+            displayY - 2,
+            displayPixelWidth + 4,
+            displayPixelHeight + 4,
+            Color.White
+        );
+
+        Raylib.DrawRectangle(
+            displayX,
+            displayY,
+            Width * DisplayScale,
+            Height * DisplayScale,
+            new Color(BackgroundColor.X, BackgroundColor.Y, BackgroundColor.Z)
+        );
+
+        // Draw each pixel
+        var fgColor = new Color(PixelColor.X, PixelColor.Y, PixelColor.Z);
+        for (var y = 0; y < Height; y++)
         {
-            return;
-        }
-        if (_window == 0 || _renderer == 0)
-            CreateWindow();
-
-        DrawBackground(_renderer);
-        DrawGrid(_renderer);
-        DrawPixels(_renderer);
-
-        SDL.RenderPresent(_renderer);
-    }
-
-    public void Close()
-    {
-        SDL.DestroyRenderer(_renderer);
-        SDL.DestroyWindow(_window);
-        SDL.Quit();
-    }
-
-    private void CreateWindow()
-    {
-        if (!SDL.Init(SDL.InitFlags.Video))
-        {
-            SDL.LogError(SDL.LogCategory.System, $"SDL could not initialize: {SDL.GetError()}");
-            throw new Exception("Failed to initialize SDL.");
-        }
-
-        if (SDL.CreateWindowAndRenderer(
-                "Chip8",
-                WindowWidth,
-                WindowHeight,
-                0,
-                out _window,
-                out _renderer)) return;
-        SDL.LogError(SDL.LogCategory.Application, $"Error creating window and rendering: {SDL.GetError()}");
-        throw new Exception("Failed to create new Window.");
-    }
-
-    private void DrawPixels(nint renderer)
-    {
-        for (var x = 0; x < Width; x++)
-        {
-            for (var y = 0; y < Height; y++)
+            for (var x = 0; x < Width; x++)
             {
-                if (_displayGrid[x, y])
+                if (DisplayGrid[x, y])
                 {
-                    DrawPixel(
-                        renderer, x, y,
-                        x - 1 > 0 && _displayGrid[x - 1, y],
-                        x + 1 < Width && _displayGrid[x + 1, y],
-                        y - 1 > 0 && _displayGrid[x, y - 1],
-                        y + 1 < Height && _displayGrid[x, y + 1]
+                    Raylib.DrawRectangle(
+                        displayX + x * DisplayScale,
+                        displayY + y * DisplayScale,
+                        DisplayScale,
+                        DisplayScale,
+                        fgColor
                     );
                 }
             }
         }
-    }
 
-    private void DrawPixel(
-        nint renderer, int x, int y, bool borderLeft, bool borderRight, bool borderTop, bool borderBottom
-    )
-    {
-        SDL.SetRenderDrawColor(renderer, _fgColor[0], _fgColor[1], _fgColor[2], _fgColor[3]);
-        SDL.FRect rect = new()
-        {
-            X = x * DisplayScale,
-            Y = y * DisplayScale,
-            W = SinglePixel,
-            H = SinglePixel
-        };
-        SDL.RenderFillRect(renderer, rect);
-
-        SDL.SetRenderDrawColor(renderer, _gridColor[0], _gridColor[1], _gridColor[2], _gridColor[3]);
-        if (borderLeft)
-        {
-            SDL.RenderLine(renderer, rect.X, rect.Y, rect.X, rect.Y + SinglePixel);
-        }
-        if (borderRight)
-        {
-            SDL.RenderLine(renderer, rect.X + SinglePixel, rect.Y, rect.X + SinglePixel, rect.Y + SinglePixel);
-        }
-        if (borderTop)
-        {
-            SDL.RenderLine(renderer, rect.X, rect.Y, rect.X + SinglePixel, rect.Y);
-        }
-        if (borderBottom)
-        {
-            SDL.RenderLine(renderer, rect.X, rect.Y + SinglePixel, rect.X + SinglePixel, rect.Y + SinglePixel);
-        }
-
-    }
-
-    private void DrawGrid(nint renderer)
-    {
-        SDL.SetRenderDrawColor(renderer, _gridColor[0], _gridColor[1], _gridColor[2], _gridColor[3]);
+        var gColor = new Color(GridColor.X, GridColor.Y, GridColor.Z);
         for (var x = 0; x < Width; x++)
         {
-            SDL.RenderLine(renderer, x * DisplayScale, 0, x * DisplayScale, WindowHeight);
+            Raylib.DrawLine(
+                displayX + x * DisplayScale,
+                displayY,
+                displayX + x * DisplayScale,
+                displayY + Height * DisplayScale,
+                gColor
+            );
         }
-        for (var x = 0; x < Height; x++)
+
+        for (var y = 0; y < Height; y++)
         {
-            SDL.RenderLine(renderer, 0, x * DisplayScale, WindowWidth, x * DisplayScale);
+            Raylib.DrawLine(
+                displayX,
+                displayY + y * DisplayScale,
+                displayX + Width * DisplayScale,
+                displayY + y * DisplayScale,
+                gColor
+            );
         }
     }
-
-    private void DrawBackground(nint renderer)
-    {
-        SDL.SetRenderDrawColor(renderer, _bgColor[0], _bgColor[1], _bgColor[2], _bgColor[3]);
-        SDL.RenderClear(renderer);
-    }
-
 }
