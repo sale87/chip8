@@ -1,6 +1,6 @@
 namespace Chip8.components
 {
-    internal class Keyboard
+    public class Keyboard
     {
         private readonly byte[] _keys = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
