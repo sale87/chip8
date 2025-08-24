@@ -12,15 +12,15 @@ public class DebugInterface
     private bool _showColorConfig = true;
     private bool _showInstructionsDebug = true;
     
-    public void Render(Display display, Action reboot)
+    public void Render(Display display, Cpu cpu, Action reboot)
     {
-        RenderCpuDebugWindow();
-        RenderColorConfigWindow(display, reboot);
-        RenderInstructionsDebugWindow();
+        RenderCpuDebugWindow(cpu);
+        RenderColorConfigWindow(display, cpu, reboot);
+        RenderInstructionsDebugWindow(cpu);
         RenderMenuBar();
     }
     
-    private void RenderCpuDebugWindow()
+    private void RenderCpuDebugWindow(Cpu cpu)
     {
         if (!_showCpuDebug) return;
         
@@ -30,23 +30,51 @@ public class DebugInterface
         ImGui.Begin("CPU Debug", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
         
         ImGui.Text("CPU Registers:");
-        ImGui.Text("V0: 0x00  V1: 0x00  V2: 0x00  V3: 0x00");
-        ImGui.Text("V4: 0x00  V5: 0x00  V6: 0x00  V7: 0x00");
-        ImGui.Text("V8: 0x00  V9: 0x00  VA: 0x00  VB: 0x00");
-        ImGui.Text("VC: 0x00  VD: 0x00  VE: 0x00  VF: 0x00");
+        if (cpu.IsCpuStateDebuggingEnabled)
+        {
+            var registers = cpu.GetRegisters();
+            ImGui.Text($"V0: 0x{registers[0]:X2}  V1: 0x{registers[1]:X2}  V2: 0x{registers[2]:X2}  V3: 0x{registers[3]:X2}");
+            ImGui.Text($"V4: 0x{registers[4]:X2}  V5: 0x{registers[5]:X2}  V6: 0x{registers[6]:X2}  V7: 0x{registers[7]:X2}");
+            ImGui.Text($"V8: 0x{registers[8]:X2}  V9: 0x{registers[9]:X2}  VA: 0x{registers[10]:X2}  VB: 0x{registers[11]:X2}");
+            ImGui.Text($"VC: 0x{registers[12]:X2}  VD: 0x{registers[13]:X2}  VE: 0x{registers[14]:X2}  VF: 0x{registers[15]:X2}");
+        }
+        else
+        {
+            ImGui.Text("V0: --    V1: --    V2: --    V3: --");
+            ImGui.Text("V4: --    V5: --    V6: --    V7: --");
+            ImGui.Text("V8: --    V9: --    VA: --    VB: --");
+            ImGui.Text("VC: --    VD: --    VE: --    VF: --");
+        }
         
         ImGui.Separator();
         
         ImGui.Text("Special Registers:");
-        ImGui.Text("PC: 0x0200");
-        ImGui.Text("I:  0x0000");
-        ImGui.Text("SP: 0x00");
+        if (cpu.IsCpuStateDebuggingEnabled)
+        {
+            ImGui.Text($"PC: 0x{cpu.GetProgramCounter():X4}");
+            ImGui.Text($"I:  0x{cpu.GetIndexRegister():X4}");
+            ImGui.Text($"SP: 0x{cpu.GetStackPointer():X2}");
+        }
+        else
+        {
+            ImGui.Text("PC: ----");
+            ImGui.Text("I:  ----");
+            ImGui.Text("SP: --");
+        }
         
         ImGui.Separator();
         
         ImGui.Text("Timers:");
-        ImGui.Text("Delay: 0");
-        ImGui.Text("Sound: 0");
+        if (cpu.IsCpuStateDebuggingEnabled)
+        {
+            ImGui.Text($"Delay: {cpu.GetDelayTimer()}");
+            ImGui.Text("Sound: 0"); // Sound timer not implemented in current CPU
+        }
+        else
+        {
+            ImGui.Text("Delay: --");
+            ImGui.Text("Sound: --");
+        }
         
         ImGui.Separator();
         
@@ -62,7 +90,7 @@ public class DebugInterface
         ImGui.End();
     }
     
-    private void RenderColorConfigWindow(Display display, Action reboot)
+    private void RenderColorConfigWindow(Display display, Cpu cpu, Action reboot)
     {
         if (!_showColorConfig) return;
         
@@ -98,10 +126,25 @@ public class DebugInterface
             // TODO: Implement exit
         }
         
+        ImGui.Separator();
+        
+        ImGui.Text("Debug Controls:");
+        var historyEnabled = cpu.IsInstructionHistoryEnabled;
+        if (ImGui.Checkbox("Instruction History", ref historyEnabled))
+        {
+            cpu.SetInstructionHistoryEnabled(historyEnabled);
+        }
+        
+        var cpuStateEnabled = cpu.IsCpuStateDebuggingEnabled;
+        if (ImGui.Checkbox("CPU State Monitoring", ref cpuStateEnabled))
+        {
+            cpu.SetCpuStateDebuggingEnabled(cpuStateEnabled);
+        }
+        
         ImGui.End();
     }
     
-    private static void RenderInstructionsDebugWindow()
+    private static void RenderInstructionsDebugWindow(Cpu cpu)
     {
         // Right side, same width as left panel, full height
         const float windowWidth = 300;
@@ -111,17 +154,34 @@ public class DebugInterface
         ImGui.Begin("Instructions Debug", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
         
         ImGui.Text("Current Instruction:");
-        ImGui.Text("0x0000: NOP");
+        ImGui.Text(cpu.GetCurrentInstruction());
         
         ImGui.Separator();
         
         ImGui.Text("Instruction History:");
         ImGui.BeginChild("InstructionHistory", new Vector2(0, 200), ImGuiChildFlags.None);
         
-        // Placeholder instruction history
-        for (var i = 0; i < 20; i++)
+        if (cpu.IsInstructionHistoryEnabled)
         {
-            ImGui.Text($"0x{(0x200 + i * 2):X4}: SAMPLE INSTRUCTION {i}");
+            var history = cpu.GetInstructionHistory();
+            if (history.Count == 0)
+            {
+                ImGui.Text("No instructions executed yet...");
+            }
+            else
+            {
+                // Display instructions in reverse order (newest first)
+                for (var i = history.Count - 1; i >= 0; i--)
+                {
+                    ImGui.Text(history[i]);
+                }
+            }
+        }
+        else
+        {
+            ImGui.Text("Instruction history is disabled.");
+            ImGui.Text("Enable it using the checkbox in");
+            ImGui.Text("the Display Colors window.");
         }
         
         ImGui.EndChild();
@@ -131,7 +191,27 @@ public class DebugInterface
         ImGui.Text("Stack:");
         ImGui.BeginChild("Stack", new Vector2(0, 150), ImGuiChildFlags.None);
         
-        ImGui.Text("Stack empty");
+        if (cpu.IsCpuStateDebuggingEnabled)
+        {
+            var stackContents = cpu.GetStackContents();
+            if (stackContents.Length == 0)
+            {
+                ImGui.Text("Stack empty");
+            }
+            else
+            {
+                for (var i = 0; i < stackContents.Length; i++)
+                {
+                    ImGui.Text($"[{i}]: 0x{stackContents[i]:X4}");
+                }
+            }
+        }
+        else
+        {
+            ImGui.Text("CPU State Monitoring disabled.");
+            ImGui.Text("Enable it using the checkbox in");
+            ImGui.Text("the Display Colors window.");
+        }
         
         ImGui.EndChild();
         

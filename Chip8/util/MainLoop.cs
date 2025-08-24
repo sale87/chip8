@@ -33,7 +33,7 @@ namespace Chip8.util
             { 0xF, KeyboardKey.V },
         };
 
-        public static void Run(Display display, Keyboard keyboard, Action reboot)
+        public static void Run(Display display, Keyboard keyboard, Cpu cpu, Action reboot)
         {
             Raylib.InitWindow(ScreenWidth, ScreenHeight, "CHIP-8 Emulator - Raylib + ImGui");
             Raylib.SetTargetFPS(60);
@@ -58,7 +58,7 @@ namespace Chip8.util
                 rlImGui.Begin();
 
                 // Draw ImGui interface
-                _debugInterface.Render(display, reboot);
+                _debugInterface.Render(display, cpu, reboot);
 
                 // End ImGui frame
                 rlImGui.End();

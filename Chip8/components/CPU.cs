@@ -5,7 +5,17 @@ namespace Chip8.components;
 public class Cpu
 {
     private const bool DebugRaw = false;
-    private const bool DebugInstructions = false;
+
+    // Instruction history for debugging
+    private readonly List<string> _instructionHistory = new();
+    private readonly object _historyLock = new();
+    private bool _collectInstructionHistory;
+    
+    // CPU state debugging
+
+    // Current instruction for debugging
+    private byte[] _currentInstruction = [];
+    private string _currentInstructionString = "No instruction";
 
     private readonly Memory _memory;
     private readonly Keyboard _keyboard;
@@ -28,7 +38,7 @@ public class Cpu
     // instruction to function implementation map
     private readonly Dictionary<byte, Action<byte[]>> _instructions;
     
-    private Random _random = new();
+    private readonly Random _random = new();
     
     public Cpu(Memory memory, Keyboard keyboard, Display display)
     {
@@ -43,6 +53,69 @@ public class Cpu
     {
         _delayTimer.StartTimer();
         _clock.Running = true;
+    }
+
+    public bool IsInstructionHistoryEnabled => _collectInstructionHistory;
+
+    public void SetInstructionHistoryEnabled(bool enabled)
+    {
+        _collectInstructionHistory = enabled;
+        if (enabled) return;
+        lock (_historyLock)
+        {
+            _instructionHistory.Clear();
+        }
+    }
+
+    public List<string> GetInstructionHistory()
+    {
+        lock (_historyLock)
+        {
+            return [.._instructionHistory];
+        }
+    }
+
+    // CPU State debugging methods
+    public bool IsCpuStateDebuggingEnabled { get; private set; }
+
+    public void SetCpuStateDebuggingEnabled(bool enabled)
+    {
+        IsCpuStateDebuggingEnabled = enabled;
+    }
+
+    public byte[] GetRegisters()
+    {
+        return IsCpuStateDebuggingEnabled ? (byte[])_registers.Clone() : new byte[16];
+    }
+
+    public short GetProgramCounter()
+    {
+        return IsCpuStateDebuggingEnabled ? _pc : (short)0;
+    }
+
+    public short GetIndexRegister()
+    {
+        return IsCpuStateDebuggingEnabled ? _indexRegister : (short)0;
+    }
+
+    public int GetStackPointer()
+    {
+        return IsCpuStateDebuggingEnabled ? _stack.Count : 0;
+    }
+
+    public short[] GetStackContents()
+    {
+        return IsCpuStateDebuggingEnabled ? _stack.ToArray().Reverse().ToArray() : [];
+    }
+
+    public byte GetDelayTimer()
+    {
+        return IsCpuStateDebuggingEnabled ? _delayTimer.GetValue() : (byte)0;
+    }
+
+    public string GetCurrentInstruction()
+    {
+        return IsCpuStateDebuggingEnabled ? _currentInstructionString : "CPU State Monitoring disabled";
     }
 
     private void RunCycle()
@@ -84,6 +157,14 @@ public class Cpu
     private void ExecuteInstruction(byte[] instruction)
     {
         PrintDebugRaw(instruction);
+        
+        // Store current instruction for debugging
+        if (IsCpuStateDebuggingEnabled)
+        {
+            _currentInstruction = instruction;
+            _currentInstructionString = $"0x{HexStr(instruction)}: {GetInstructionDescription(instruction)}";
+        }
+        
         _instructions[(byte)(instruction[0] >> 4)](instruction);
         
     }
@@ -469,14 +550,85 @@ public class Cpu
         return Convert.ToHexString(arr);
     }
 
-    private static void Debug(string message)
+    private static string GetInstructionDescription(byte[] instruction)
     {
-        if (!DebugInstructions)
-            return;
+        var firstNibble = (byte)(instruction[0] >> 4);
+        var x = instruction[0] & 0x0F;
+        var y = (instruction[1] >> 4) & 0x0F;
+        var n = instruction[1] & 0x0F;
+        var nn = instruction[1];
+        var nnn = ((instruction[0] & 0x0F) << 8) | instruction[1];
 
-        // ReSharper disable once HeuristicUnreachableCode
-#pragma warning disable CS0162 // Unreachable code detected
-        Console.Out.WriteLine($"{DateTime.Now:HH:mm:ss.ffffff} {message}");
-#pragma warning restore CS0162 // Unreachable code detected
+        return firstNibble switch
+        {
+            0x0 => instruction[1] switch
+            {
+                0xE0 => "CLS (Clear screen)",
+                0xEE => "RET (Return from subroutine)",
+                _ => "SYS (System call - ignored)"
+            },
+            0x1 => $"JP 0x{nnn:X3} (Jump to address)",
+            0x2 => $"CALL 0x{nnn:X3} (Call subroutine)",
+            0x3 => $"SE V{x:X}, 0x{nn:X2} (Skip if equal)",
+            0x4 => $"SNE V{x:X}, 0x{nn:X2} (Skip if not equal)",
+            0x5 => $"SE V{x:X}, V{y:X} (Skip if registers equal)",
+            0x6 => $"LD V{x:X}, 0x{nn:X2} (Load byte)",
+            0x7 => $"ADD V{x:X}, 0x{nn:X2} (Add byte)",
+            0x8 => n switch
+            {
+                0x0 => $"LD V{x:X}, V{y:X} (Load register)",
+                0x1 => $"OR V{x:X}, V{y:X} (Bitwise OR)",
+                0x2 => $"AND V{x:X}, V{y:X} (Bitwise AND)",
+                0x3 => $"XOR V{x:X}, V{y:X} (Bitwise XOR)",
+                0x4 => $"ADD V{x:X}, V{y:X} (Add with carry)",
+                0x5 => $"SUB V{x:X}, V{y:X} (Subtract)",
+                0x6 => $"SHR V{x:X} (Shift right)",
+                0x7 => $"SUBN V{x:X}, V{y:X} (Subtract reverse)",
+                0xE => $"SHL V{x:X} (Shift left)",
+                _ => "Unknown 8XYN instruction"
+            },
+            0x9 => $"SNE V{x:X}, V{y:X} (Skip if registers not equal)",
+            0xA => $"LD I, 0x{nnn:X3} (Load index register)",
+            0xB => $"JP V0, 0x{nnn:X3} (Jump with offset)",
+            0xC => $"RND V{x:X}, 0x{nn:X2} (Random)",
+            0xD => $"DRW V{x:X}, V{y:X}, {n} (Draw sprite)",
+            0xE => nn switch
+            {
+                0x9E => $"SKP V{x:X} (Skip if key pressed)",
+                0xA1 => $"SKNP V{x:X} (Skip if key not pressed)",
+                _ => "Unknown EX instruction"
+            },
+            0xF => nn switch
+            {
+                0x07 => $"LD V{x:X}, DT (Load delay timer)",
+                0x0A => $"LD V{x:X}, K (Wait for key)",
+                0x15 => $"LD DT, V{x:X} (Set delay timer)",
+                0x18 => $"LD ST, V{x:X} (Set sound timer)",
+                0x1E => $"ADD I, V{x:X} (Add to index)",
+                0x29 => $"LD F, V{x:X} (Load font address)",
+                0x33 => $"LD B, V{x:X} (Binary coded decimal)",
+                0x55 => $"LD [I], V{x:X} (Store registers)",
+                0x65 => $"LD V{x:X}, [I] (Load registers)",
+                _ => "Unknown FX instruction"
+            },
+            _ => "Unknown instruction"
+        };
+    }
+
+    private void Debug(string message)
+    {
+        if (_collectInstructionHistory)
+        {
+            lock (_historyLock)
+            {
+                _instructionHistory.Add($"{DateTime.Now:HH:mm:ss.ffffff} 0x{_pc - 2:X4}: {message}");
+                
+                // Keep only the last 1000 instructions to avoid memory issues
+                if (_instructionHistory.Count > 1000)
+                {
+                    _instructionHistory.RemoveAt(0);
+                }
+            }
+        }
     }
 }
