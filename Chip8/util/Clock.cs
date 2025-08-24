@@ -32,7 +32,15 @@ namespace Chip8.util
                     _last500Hz = _stopwatch.ElapsedTicks;
                     if (Running)
                     {
-                        _tick500Hz();
+                        try
+                        {
+                            _tick500Hz();
+                        }
+                        catch (Exception exception)
+                        {
+                            ThreadPool.QueueUserWorkItem(_ =>
+                                throw new Exception("Instruction exec exception.", exception));
+                        }
                     }
                 }
 

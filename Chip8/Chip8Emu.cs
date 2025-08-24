@@ -9,17 +9,24 @@ namespace Chip8
         private Memory _memory = null!;
         private Display _display = null!;
         private Keyboard _keyboard = null!;
+        private string romPath = null!;
 
         public void Run(string path)
+        {
+            romPath = path;
+            Boot();
+            MainLoop.Run(_display, _keyboard, Boot);
+        }
+
+        private void Boot()
         {
             _memory = new Memory();
             _display = new Display();
             _keyboard = new Keyboard();
             _cpu = new Cpu(_memory, _keyboard, _display);
             Font.Load(_memory);
-            LoadRom(path);
+            LoadRom(romPath);
             _cpu.Start();
-            MainLoop.Run(_display, _keyboard);
         }
 
         private void LoadRom(string path)

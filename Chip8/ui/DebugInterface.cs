@@ -12,10 +12,10 @@ public class DebugInterface
     private bool _showColorConfig = true;
     private bool _showInstructionsDebug = true;
     
-    public void Render(Display display)
+    public void Render(Display display, Action reboot)
     {
         RenderCpuDebugWindow();
-        RenderColorConfigWindow(display);
+        RenderColorConfigWindow(display, reboot);
         RenderInstructionsDebugWindow();
         RenderMenuBar();
     }
@@ -62,7 +62,7 @@ public class DebugInterface
         ImGui.End();
     }
     
-    private void RenderColorConfigWindow(Display display)
+    private void RenderColorConfigWindow(Display display, Action reboot)
     {
         if (!_showColorConfig) return;
         
@@ -90,7 +90,7 @@ public class DebugInterface
         ImGui.SameLine();
         if (ImGui.Button("Reset", new Vector2(100, 30)))
         {
-            // TODO: Implement reset
+            reboot();
         }
         ImGui.SameLine();
         if (ImGui.Button("Exit", new Vector2(100, 30)))

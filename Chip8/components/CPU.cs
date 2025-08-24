@@ -28,6 +28,8 @@ public class Cpu
     // instruction to function implementation map
     private readonly Dictionary<byte, Action<byte[]>> _instructions;
     
+    private Random _random = new();
+    
     public Cpu(Memory memory, Keyboard keyboard, Display display)
     {
         _memory = memory;
@@ -72,6 +74,7 @@ public class Cpu
             { 0x9, SkipIfVXneqVy },
             { 0xA, SetIndexRegister },
             { 0xB, JumpWithOffset },
+            { 0xC, Rand },
             { 0xD, Draw },
             { 0xE, EInstruction },
             { 0xF, FInstruction },
@@ -289,6 +292,14 @@ public class Cpu
         Debug($"jump 0x{_pc:X4}");
     }
 
+    private void Rand(byte[] instruction)
+    {
+        // CXNN - Get random number, do binary and with NN and put result in vX
+        var vX = SecondNibble(instruction[0]);
+        _registers[vX] = (byte)(_random.Next(0, 255) & instruction[1]);
+        Debug($"rnd v{vX:X} 0x{instruction[1]:X}");
+    }
+    
     private void Draw(byte[] instruction)
     {
         // DXYN - draw an N pixels tall sprite 
