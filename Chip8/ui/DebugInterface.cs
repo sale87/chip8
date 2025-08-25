@@ -7,16 +7,31 @@ namespace Chip8.ui;
 
 public class DebugInterface
 {
+    // ROM metadata structure
+    private record RomInfo(string Name, string Path, string Description);
+    
     // Debug state
     private bool _showCpuDebug = true;
     private bool _showColorConfig = true;
     private bool _showInstructionsDebug = true;
+    private bool _showRomBrowser;
     
-    public void Render(Display display, Cpu cpu, Action reboot)
+    // Memory viewer state
+    private int _memoryViewAddress = 0x200; // Start at ROM area
+    private const int MemoryViewLines = 32; // Number of lines to show
+    private const int BytesPerLine = 16; // Bytes per line
+    
+    // ROM browser state
+    private readonly List<RomInfo> _availableRoms = [];
+    private bool _romsScanned;
+    
+    public void Render(Display display, Cpu cpu, Action reboot, Action exit, Action<string> loadRom)
     {
         RenderCpuDebugWindow(cpu);
-        RenderColorConfigWindow(display, cpu, reboot);
+        RenderColorConfigWindow(display, reboot, exit);
         RenderInstructionsDebugWindow(cpu);
+        RenderDebugControlsWidget(cpu);
+        RenderRomBrowserWindow(loadRom);
         RenderMenuBar();
     }
     
@@ -28,6 +43,13 @@ public class DebugInterface
         ImGui.SetNextWindowPos(new Vector2(10, 30), ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(300, Raylib.GetScreenHeight() - 40), ImGuiCond.Always);
         ImGui.Begin("CPU Debug", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+        
+        ImGui.Text($"System Info:");
+        ImGui.Text($"FPS: {Raylib.GetFPS()}");
+        ImGui.Text($"IPS: {cpu.GetInstructionsPerSecond()}"); // Instructions Per Second
+        ImGui.Text($"Display: {Display.Width}x{Display.Height}");
+        
+        ImGui.Separator();
         
         ImGui.Text("CPU Registers:");
         if (cpu.IsCpuStateDebuggingEnabled)
@@ -79,18 +101,88 @@ public class DebugInterface
         ImGui.Separator();
         
         ImGui.Text("Memory:");
-        ImGui.Text("ROM Start: 0x0200");
         
-        ImGui.Separator();
+        // Memory navigation controls
+        if (ImGui.Button("ROM", new Vector2(40, 20)))
+        {
+            _memoryViewAddress = 0x200; // Jump to ROM start
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("PC", new Vector2(30, 20)))
+        {
+            _memoryViewAddress = cpu.GetProgramCounter() & 0xFFF0; // Jump to PC (aligned)
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("I", new Vector2(25, 20)))
+        {
+            _memoryViewAddress = cpu.GetIndexRegister() & 0xFFF0; // Jump to I register
+        }
         
-        ImGui.Text($"System Info:");
-        ImGui.Text($"FPS: {Raylib.GetFPS()}");
-        ImGui.Text($"Display: {Display.Width}x{Display.Height}");
+        // Address input
+        var addressInput = _memoryViewAddress;
+        if (ImGui.InputInt("Addr", ref addressInput, 16, 256))
+        {
+            _memoryViewAddress = Math.Max(0, Math.Min(0x1000 - (MemoryViewLines * BytesPerLine), addressInput));
+        }
+        
+        // Memory display - expand to fill remaining space
+        ImGui.BeginChild("Memory", new Vector2(0, -1), ImGuiChildFlags.None, ImGuiWindowFlags.None);
+        
+        if (cpu.IsCpuStateDebuggingEnabled)
+        {
+            var memoryData = cpu.GetMemoryRange((short)_memoryViewAddress, MemoryViewLines * BytesPerLine);
+            
+            for (var line = 0; line < MemoryViewLines; line++)
+            {
+                var baseAddr = _memoryViewAddress + (line * BytesPerLine);
+                var hexBytes = new List<string>();
+                var asciiChars = new List<char>();
+                
+                for (var col = 0; col < BytesPerLine; col++)
+                {
+                    var byteIndex = line * BytesPerLine + col;
+                    if (byteIndex < memoryData.Length)
+                    {
+                        var byteValue = memoryData[byteIndex];
+                        hexBytes.Add($"{byteValue:X2}");
+                        asciiChars.Add(byteValue is >= 32 and <= 126 ? (char)byteValue : '.');
+                    }
+                    else
+                    {
+                        hexBytes.Add("--");
+                        asciiChars.Add(' ');
+                    }
+                }
+                
+                var hexString = string.Join(" ", hexBytes);
+                var asciiString = new string(asciiChars.ToArray());
+                
+                // Highlight current PC line
+                var currentPc = cpu.GetProgramCounter();
+                if (currentPc >= baseAddr && currentPc < baseAddr + BytesPerLine)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 0.0f, 1.0f)); // Yellow
+                }
+                
+                ImGui.Text($"{baseAddr:X4}: {hexString} |{asciiString}|");
+                
+                if (currentPc >= baseAddr && currentPc < baseAddr + BytesPerLine)
+                {
+                    ImGui.PopStyleColor();
+                }
+            }
+        }
+        else
+        {
+            ImGui.Text("CPU State Monitoring disabled.");
+        }
+        
+        ImGui.EndChild();
         
         ImGui.End();
     }
     
-    private void RenderColorConfigWindow(Display display, Cpu cpu, Action reboot)
+    private void RenderColorConfigWindow(Display display, Action reboot, Action exit)
     {
         if (!_showColorConfig) return;
         
@@ -113,32 +205,17 @@ public class DebugInterface
         ImGui.Text("Emulator Controls:");
         if (ImGui.Button("Load ROM", new Vector2(100, 30)))
         {
-            // TODO: Implement ROM loading
+            _showRomBrowser = true;
         }
         ImGui.SameLine();
-        if (ImGui.Button("Reset", new Vector2(100, 30)))
+        if (ImGui.Button("Restart", new Vector2(100, 30)))
         {
-            reboot();
+            reboot(); // This calls Boot() which reloads the ROM and resets CPU state
         }
         ImGui.SameLine();
         if (ImGui.Button("Exit", new Vector2(100, 30)))
         {
-            // TODO: Implement exit
-        }
-        
-        ImGui.Separator();
-        
-        ImGui.Text("Debug Controls:");
-        var historyEnabled = cpu.IsInstructionHistoryEnabled;
-        if (ImGui.Checkbox("Instruction History", ref historyEnabled))
-        {
-            cpu.SetInstructionHistoryEnabled(historyEnabled);
-        }
-        
-        var cpuStateEnabled = cpu.IsCpuStateDebuggingEnabled;
-        if (ImGui.Checkbox("CPU State Monitoring", ref cpuStateEnabled))
-        {
-            cpu.SetCpuStateDebuggingEnabled(cpuStateEnabled);
+            exit(); // This will close the emulator
         }
         
         ImGui.End();
@@ -155,36 +232,6 @@ public class DebugInterface
         
         ImGui.Text("Current Instruction:");
         ImGui.Text(cpu.GetCurrentInstruction());
-        
-        ImGui.Separator();
-        
-        ImGui.Text("Instruction History:");
-        ImGui.BeginChild("InstructionHistory", new Vector2(0, 200), ImGuiChildFlags.None);
-        
-        if (cpu.IsInstructionHistoryEnabled)
-        {
-            var history = cpu.GetInstructionHistory();
-            if (history.Count == 0)
-            {
-                ImGui.Text("No instructions executed yet...");
-            }
-            else
-            {
-                // Display instructions in reverse order (newest first)
-                for (var i = history.Count - 1; i >= 0; i--)
-                {
-                    ImGui.Text(history[i]);
-                }
-            }
-        }
-        else
-        {
-            ImGui.Text("Instruction history is disabled.");
-            ImGui.Text("Enable it using the checkbox in");
-            ImGui.Text("the Display Colors window.");
-        }
-        
-        ImGui.EndChild();
         
         ImGui.Separator();
         
@@ -215,6 +262,190 @@ public class DebugInterface
         
         ImGui.EndChild();
         
+        ImGui.Separator();
+        
+        ImGui.Text("Instruction History:");
+        ImGui.BeginChild("InstructionHistory", new Vector2(0, -1), ImGuiChildFlags.None);
+        
+        if (cpu.IsInstructionHistoryEnabled)
+        {
+            var history = cpu.GetInstructionHistory();
+            if (history.Count == 0)
+            {
+                ImGui.Text("No instructions executed yet...");
+            }
+            else
+            {
+                // Display instructions in reverse order (newest first)
+                for (var i = history.Count - 1; i >= 0; i--)
+                {
+                    ImGui.Text(history[i]);
+                }
+            }
+        }
+        else
+        {
+            ImGui.Text("Instruction history is disabled.");
+            ImGui.Text("Enable it using the checkbox in");
+            ImGui.Text("the Display Colors window.");
+        }
+        
+        ImGui.EndChild();
+        
+        ImGui.End();
+    }
+    
+    private void RenderDebugControlsWidget(Cpu cpu)
+    {
+        // Position below the main CHIP-8 display
+        const int displayPixelWidth = Display.Width * 10; // DisplayScale = 10
+        const int displayPixelHeight = Display.Height * 10;
+        var displayX = (Raylib.GetScreenWidth() - displayPixelWidth) / 2;
+        var displayY = (Raylib.GetScreenHeight() - displayPixelHeight) / 2;
+        
+        // Position debug controls below the display
+        var debugY = displayY + displayPixelHeight + 20; // 20px gap
+        var debugWidth = displayPixelWidth;
+        var debugHeight = Raylib.GetScreenHeight() - debugY - 10; // Full height minus margins
+        
+        ImGui.SetNextWindowPos(new Vector2(displayX, debugY), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(debugWidth, debugHeight), ImGuiCond.Always);
+        ImGui.Begin("Debug Controls", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoTitleBar);
+        
+        // Debug Toggles
+        ImGui.Text("Debug Options:");
+        var historyEnabled = cpu.IsInstructionHistoryEnabled;
+        if (ImGui.Checkbox("Instruction History##widget", ref historyEnabled))
+        {
+            cpu.SetInstructionHistoryEnabled(historyEnabled);
+        }
+        ImGui.SameLine();
+        var cpuStateEnabled = cpu.IsCpuStateDebuggingEnabled;
+        if (ImGui.Checkbox("CPU State Monitoring##widget", ref cpuStateEnabled))
+        {
+            cpu.SetCpuStateDebuggingEnabled(cpuStateEnabled);
+        }
+        
+        ImGui.Separator();
+        
+        // Execution Speed Control
+        ImGui.Text("Execution Speed:");
+        var currentSpeed = cpu.GetExecutionSpeed();
+        var speedSlider = currentSpeed;
+        if (ImGui.SliderInt("Hz##speed", ref speedSlider, 1, 1000, $"{currentSpeed} Hz"))
+        {
+            cpu.SetExecutionSpeed(speedSlider);
+        }
+        
+        // Preset buttons for common speeds
+        if (ImGui.Button("60Hz##preset", new Vector2(50, 20)))
+        {
+            cpu.SetExecutionSpeed(60);
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("500Hz##preset", new Vector2(55, 20)))
+        {
+            cpu.SetExecutionSpeed(500);
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("1000Hz##preset", new Vector2(60, 20)))
+        {
+            cpu.SetExecutionSpeed(1000);
+        }
+        
+        ImGui.Separator();
+        
+        // Execution Controls
+        ImGui.Text("Execution:");
+        if (cpu.IsRunning)
+        {
+            if (ImGui.Button("Pause##widget", new Vector2(80, 25)))
+            {
+                cpu.Pause();
+            }
+        }
+        else
+        {
+            if (ImGui.Button("Resume##widget", new Vector2(80, 25)))
+            {
+                cpu.Resume();
+            }
+        }
+        ImGui.SameLine();
+        
+        // Step button
+        if (!cpu.IsRunning)
+        {
+            if (ImGui.Button("Step##widget", new Vector2(80, 25)))
+            {
+                cpu.StepOneInstruction();
+            }
+        }
+        else
+        {
+            ImGui.BeginDisabled();
+            ImGui.Button("Step##widget", new Vector2(80, 25));
+            ImGui.EndDisabled();
+        }
+        
+        ImGui.End();
+    }
+    
+    private void RenderRomBrowserWindow(Action<string> loadRom)
+    {
+        if (!_showRomBrowser) return;
+        
+        // Scan for ROMs if not done yet
+        ScanAvailableRoms();
+        
+        // Position ROM browser in center-right area
+        const float windowWidth = 400;
+        const float windowHeight = 500;
+        var xPos = Raylib.GetScreenWidth() - windowWidth - 320; // Leave space for right panel
+        var yPos = (Raylib.GetScreenHeight() - windowHeight) / 2;
+        
+        ImGui.SetNextWindowPos(new Vector2(xPos, yPos), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(windowWidth, windowHeight), ImGuiCond.FirstUseEver);
+        ImGui.Begin("ROM Browser", ref _showRomBrowser, ImGuiWindowFlags.None);
+        
+        ImGui.Text("Available ROMs:");
+        ImGui.Separator();
+        
+        ImGui.BeginChild("ROMList", new Vector2(0, -30), ImGuiChildFlags.None);
+        
+        foreach (var rom in _availableRoms)
+        {
+            // ROM name as selectable button
+            var selected = ImGui.Selectable($"{rom.Name}##rom_{rom.Path}");
+            
+            // Show description on the same line or next line if it's too long
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f)); // Gray color
+            ImGui.TextWrapped($"  {rom.Description}");
+            ImGui.PopStyleColor();
+            
+            ImGui.Separator();
+            
+            if (selected)
+            {
+                loadRom(rom.Path);
+                _showRomBrowser = false; // Close browser after loading
+            }
+        }
+        
+        ImGui.EndChild();
+        
+        ImGui.Separator();
+        if (ImGui.Button("Refresh", new Vector2(80, 25)))
+        {
+            _romsScanned = false; // Force rescan
+            ScanAvailableRoms();
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Close", new Vector2(80, 25)))
+        {
+            _showRomBrowser = false;
+        }
+        
         ImGui.End();
     }
     
@@ -227,6 +458,7 @@ public class DebugInterface
             ImGui.MenuItem("CPU Debug", "", ref _showCpuDebug);
             ImGui.MenuItem("Color Config", "", ref _showColorConfig);
             ImGui.MenuItem("Instructions Debug", "", ref _showInstructionsDebug);
+            ImGui.MenuItem("ROM Browser", "", ref _showRomBrowser);
             ImGui.EndMenu();
         }
             
@@ -240,5 +472,63 @@ public class DebugInterface
         }
             
         ImGui.EndMainMenuBar();
+    }
+    
+    private void ScanAvailableRoms()
+    {
+        if (_romsScanned) return;
+        
+        _availableRoms.Clear();
+        
+        // Scan roms folder for .ch8 files
+        const string romsPath = "roms";
+        if (Directory.Exists(romsPath))
+        {
+            ScanRomsDirectory(romsPath);
+        }
+        
+        // Sort ROMs alphabetically by name
+        _availableRoms.Sort((rom1, rom2) => string.Compare(rom1.Name, rom2.Name, StringComparison.OrdinalIgnoreCase));
+        
+        _romsScanned = true;
+    }
+    
+    private void ScanRomsDirectory(string basePath)
+    {
+        try
+        {
+            var romFiles = Directory.GetFiles(basePath, "*.ch8", SearchOption.AllDirectories);
+            
+            foreach (var romFile in romFiles)
+            {
+                var fileName = Path.GetFileNameWithoutExtension(romFile);
+                var description = GetRomDescription(fileName);
+                _availableRoms.Add(new RomInfo(fileName, romFile, description));
+            }
+        }
+        catch (Exception)
+        {
+            // Ignore errors when scanning directories
+        }
+    }
+    
+    private static string GetRomDescription(string romName)
+    {
+        return romName.ToLower() switch
+        {
+            "ibm logo" => "Classic IBM logo demonstration",
+            "1-chip8-logo" => "CHIP-8 logo test",
+            "2-ibm-logo" => "IBM logo test ROM",
+            "3-corax+" => "Corax+ test ROM",
+            "4-flags" => "Flag test ROM", 
+            "5-quirks" => "Quirks test ROM",
+            "6-keypad" => "Keypad test ROM",
+            var name when name.Contains("tetris") => "Classic Tetris game",
+            var name when name.Contains("pong") => "Pong arcade game",
+            var name when name.Contains("snake") => "Snake game",
+            var name when name.Contains("breakout") => "Breakout arcade game",
+            var name when name.Contains("invaders") => "Space Invaders style game",
+            _ => "CHIP-8 ROM"
+        };
     }
 }

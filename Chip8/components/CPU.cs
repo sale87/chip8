@@ -7,15 +7,19 @@ public class Cpu
     private const bool DebugRaw = false;
 
     // Instruction history for debugging
-    private readonly List<string> _instructionHistory = new();
+    private readonly List<string> _instructionHistory = [];
     private readonly object _historyLock = new();
-    private bool _collectInstructionHistory;
+    private bool _collectInstructionHistory = true;
     
     // CPU state debugging
 
     // Current instruction for debugging
-    private byte[] _currentInstruction = [];
     private string _currentInstructionString = "No instruction";
+    
+    // Instruction counter for performance monitoring
+    private int _instructionCount;
+    private DateTime _lastSecondTime = DateTime.Now;
+    private int _instructionsPerSecond;
 
     private readonly Memory _memory;
     private readonly Keyboard _keyboard;
@@ -54,6 +58,11 @@ public class Cpu
         _delayTimer.StartTimer();
         _clock.Running = true;
     }
+    
+    public void Stop()
+    {
+        _clock.Running = false;
+    }
 
     public bool IsInstructionHistoryEnabled => _collectInstructionHistory;
 
@@ -76,7 +85,7 @@ public class Cpu
     }
 
     // CPU State debugging methods
-    public bool IsCpuStateDebuggingEnabled { get; private set; }
+    public bool IsCpuStateDebuggingEnabled { get; private set; } = true;
 
     public void SetCpuStateDebuggingEnabled(bool enabled)
     {
@@ -118,10 +127,87 @@ public class Cpu
         return IsCpuStateDebuggingEnabled ? _currentInstructionString : "CPU State Monitoring disabled";
     }
 
+    // Execution control methods
+    public bool IsRunning => _clock.Running;
+
+    public void Pause()
+    {
+        _clock.Running = false;
+    }
+
+    public void Resume()
+    {
+        _clock.Running = true;
+    }
+
+    public void StepOneInstruction()
+    {
+        if (_clock.Running) return; // Only allow stepping when paused
+        
+        var instruction = FetchInstruction();
+        ExecuteInstruction(instruction);
+    }
+
+    // Memory access methods
+    public byte[] GetMemoryRange(short startAddress, int length)
+    {
+        return IsCpuStateDebuggingEnabled ? _memory.ReadMemory(startAddress, (short)length) : new byte[length];
+    }
+
+    // Execution speed control
+    public int GetExecutionSpeed()
+    {
+        return _clock.ExecutionSpeed;
+    }
+
+    public void SetExecutionSpeed(int hz)
+    {
+        _clock.SetExecutionSpeed(hz);
+    }
+
+    public int GetInstructionsPerSecond()
+    {
+        return _instructionsPerSecond;
+    }
+
+    // Reset CPU state
+    public void Reset()
+    {
+        // Stop execution first and make sure it stays stopped
+        _clock.Running = false;
+        
+        // Reset CPU state
+        _pc = 0x200;
+        _indexRegister = 0;
+        Array.Clear(_registers, 0, _registers.Length);
+        _stack.Clear();
+        
+        // Reset debug state
+        lock (_historyLock)
+        {
+            _instructionHistory.Clear();
+        }
+
+        _currentInstructionString = "No instruction";
+        
+        // Reset timers
+        _delayTimer.SetValue(0);
+        
+        // Keep the clock stopped - it will be started by Start() method
+    }
+
     private void RunCycle()
     {
         var instruction = FetchInstruction();
         ExecuteInstruction(instruction);
+        
+        // Count instructions for performance monitoring
+        _instructionCount++;
+        var currentTime = DateTime.Now;
+        if (!((currentTime - _lastSecondTime).TotalSeconds >= 1.0)) return;
+        _instructionsPerSecond = _instructionCount;
+        _instructionCount = 0;
+        _lastSecondTime = currentTime;
     }
 
     private byte[] FetchInstruction()
@@ -161,7 +247,6 @@ public class Cpu
         // Store current instruction for debugging
         if (IsCpuStateDebuggingEnabled)
         {
-            _currentInstruction = instruction;
             _currentInstructionString = $"0x{HexStr(instruction)}: {GetInstructionDescription(instruction)}";
         }
         
@@ -182,6 +267,10 @@ public class Cpu
     {
         switch (instruction[1])
         {
+            case 0x00:
+                // 0000 - NOP (No Operation) - do nothing
+                Debug("nop");
+                break;
             case 0xE0:
                 ClearScreen();
                 break;
@@ -471,6 +560,10 @@ public class Cpu
                 _delayTimer.SetValue(_registers[vX]);
                 Debug($"set delay_timer v{vX:X}");
                 break;
+            case 0x29:
+                _indexRegister = (short)(Font.FontStartAddr + (_registers[vX] * 5));
+                Debug($"set _indexRegister v{_indexRegister:X}");
+                break;
             case 0x33:
                 // convert vX to decimal MNP and then
                 // store M in memory[I], N in memory[I + 1], and P in memory[I + 2]
@@ -621,7 +714,7 @@ public class Cpu
         {
             lock (_historyLock)
             {
-                _instructionHistory.Add($"{DateTime.Now:HH:mm:ss.ffffff} 0x{_pc - 2:X4}: {message}");
+                _instructionHistory.Add($"0x{_pc - 2:X4}: {message}");
                 
                 // Keep only the last 1000 instructions to avoid memory issues
                 if (_instructionHistory.Count > 1000)

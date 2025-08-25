@@ -12,6 +12,7 @@ namespace Chip8.util
         private const int ScreenHeight = 900;
 
         private static DebugInterface _debugInterface = null!;
+        private static bool _shouldExit;
 
         private static readonly Dictionary<byte, KeyboardKey> Keys = new Dictionary<byte, KeyboardKey>
         {
@@ -33,9 +34,9 @@ namespace Chip8.util
             { 0xF, KeyboardKey.V },
         };
 
-        public static void Run(Display display, Keyboard keyboard, Cpu cpu, Action reboot)
+        public static void Run(Display display, Keyboard keyboard, Cpu cpu, Action reboot, Action<string> loadRom)
         {
-            Raylib.InitWindow(ScreenWidth, ScreenHeight, "CHIP-8 Emulator - Raylib + ImGui");
+            Raylib.InitWindow(ScreenWidth, ScreenHeight, "CHIP-8");
             Raylib.SetTargetFPS(60);
 
             // Initialize ImGui
@@ -43,7 +44,7 @@ namespace Chip8.util
             Console.WriteLine("ImGui initialized successfully");
             _debugInterface = new DebugInterface();
 
-            while (!Raylib.WindowShouldClose())
+            while (!Raylib.WindowShouldClose() && !_shouldExit)
             {
                 // Update
 
@@ -58,7 +59,7 @@ namespace Chip8.util
                 rlImGui.Begin();
 
                 // Draw ImGui interface
-                _debugInterface.Render(display, cpu, reboot);
+                _debugInterface.Render(display, cpu, reboot, () => _shouldExit = true, loadRom);
 
                 // End ImGui frame
                 rlImGui.End();

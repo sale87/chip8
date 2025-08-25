@@ -4,18 +4,20 @@ namespace Chip8.util
 {
     public class Clock
     {
-        // = (TimeSpan.TicksPerSecond / 500)
-        private const int TicksPer500Hz = 20_000;
-
-        private readonly Action _tick500Hz;
+        private readonly Action _tickAction;
         private readonly Stopwatch _stopwatch;
 
-        private long _last500Hz;
+        private long _lastTick;
+        private long _ticksPerExecution;
 
-        public Clock(Action tick500Hz, bool running = true)
+        // Default to 700Hz execution speed
+        public int ExecutionSpeed { get; private set; } = 700;
+
+        public Clock(Action tickAction, bool running = true)
         {
             _stopwatch = Stopwatch.StartNew();
-            _tick500Hz = tick500Hz;
+            _tickAction = tickAction;
+            SetExecutionSpeed(ExecutionSpeed); // Initialize with default speed
 
             Running = running;
             Task.Run(Loop);
@@ -23,18 +25,24 @@ namespace Chip8.util
 
         public bool Running { get; set; }
 
+        public void SetExecutionSpeed(int hz)
+        {
+            ExecutionSpeed = Math.Max(1, Math.Min(1000, hz)); // Clamp between 1Hz and 1kHz  
+            _ticksPerExecution = TimeSpan.TicksPerSecond / ExecutionSpeed;
+        }
+
         private void Loop()
         {
             while (true)
             {
-                if (_stopwatch.ElapsedTicks - _last500Hz > TicksPer500Hz)
+                if (_stopwatch.ElapsedTicks - _lastTick > _ticksPerExecution)
                 {
-                    _last500Hz = _stopwatch.ElapsedTicks;
+                    _lastTick = _stopwatch.ElapsedTicks;
                     if (Running)
                     {
                         try
                         {
-                            _tick500Hz();
+                            _tickAction();
                         }
                         catch (Exception exception)
                         {
@@ -44,8 +52,15 @@ namespace Chip8.util
                     }
                 }
 
-                var sleepFor = TimeSpan.FromTicks(Math.Min(0, _stopwatch.ElapsedTicks - _last500Hz));
-                Thread.Sleep(sleepFor);
+                var timeUntilNextTick = _ticksPerExecution - (_stopwatch.ElapsedTicks - _lastTick);
+                if (timeUntilNextTick > 0)
+                {
+                    Thread.Sleep(TimeSpan.FromTicks(timeUntilNextTick));
+                }
+                else
+                {
+                    Thread.Sleep(1); // Small sleep to prevent 100% CPU usage
+                }
             }
             // ReSharper disable once FunctionNeverReturns
         }

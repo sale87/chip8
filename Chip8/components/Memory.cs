@@ -5,6 +5,11 @@ namespace Chip8.components
         // 4kb of memory
         private readonly byte[] _memory = new byte[4096];
 
+        public void Reset()
+        {
+            Array.Clear(_memory, 0, _memory.Length);
+        }
+
         public void SetMemory(short addr, byte b)
         {
             if (addr is < 0 or > 4096)
