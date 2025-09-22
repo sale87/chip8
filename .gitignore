@@ -4,3 +4,4 @@ obj
 .idea
 Chip8.sln.DotSettings.user
 global.json
+imgui.ini
